@@ -1,9 +1,9 @@
 import { createServerClient as createSupaServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
 import type { Database } from "./database.types"
+import { cookies as nextCookies } from "next/headers"
 
 export function createServerClient() {
-  const cookieStore = cookies()
+  const cookieStore = nextCookies()
 
   return createSupaServerClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
     cookies: {
@@ -30,5 +30,14 @@ export function createServerClient() {
   })
 }
 
+// Create a server-side only version that doesn't use cookies from next/headers
+export function createServerOnlyClient() {
+  return createSupaServerClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+    auth: {
+      persistSession: false,
+    },
+  })
+}
+
 // Añadimos esta exportación para mantener compatibilidad con el código existente
-export const createClient = createServerClient
+export const createClient = createServerOnlyClient

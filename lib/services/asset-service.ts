@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServerOnlyClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/database.types"
 
 /**
@@ -6,7 +6,7 @@ import type { Database } from "@/lib/supabase/database.types"
  * @returns Array of assets
  */
 export async function getAssets() {
-  const supabase = createClient()
+  const supabase = createServerOnlyClient()
 
   const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
 
@@ -24,7 +24,7 @@ export async function getAssets() {
  * @returns Asset object or null if not found
  */
 export async function getAssetById(id: string) {
-  const supabase = createClient()
+  const supabase = createServerOnlyClient()
 
   const { data, error } = await supabase.from("activos").select("*").eq("id", id).single()
 
@@ -42,7 +42,7 @@ export async function getAssetById(id: string) {
  * @returns Created asset
  */
 export async function createAsset(asset: Omit<Database["public"]["Tables"]["activos"]["Insert"], "id">) {
-  const supabase = createClient()
+  const supabase = createServerOnlyClient()
 
   const { data, error } = await supabase.from("activos").insert(asset).select().single()
 
@@ -61,7 +61,7 @@ export async function createAsset(asset: Omit<Database["public"]["Tables"]["acti
  * @returns Updated asset
  */
 export async function updateAsset(id: string, asset: Partial<Database["public"]["Tables"]["activos"]["Update"]>) {
-  const supabase = createClient()
+  const supabase = createServerOnlyClient()
 
   const { data, error } = await supabase.from("activos").update(asset).eq("id", id).select().single()
 
@@ -79,7 +79,7 @@ export async function updateAsset(id: string, asset: Partial<Database["public"][
  * @returns Success status
  */
 export async function deleteAsset(id: string) {
-  const supabase = createClient()
+  const supabase = createServerOnlyClient()
 
   const { error } = await supabase.from("activos").delete().eq("id", id)
 
