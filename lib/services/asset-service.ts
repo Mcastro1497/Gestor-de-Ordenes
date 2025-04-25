@@ -1,4 +1,4 @@
-import { createServerOnlyClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/database.types"
 
 /**
@@ -7,16 +7,7 @@ import type { Database } from "@/lib/supabase/database.types"
  */
 export async function getAssets() {
   try {
-    // For client-side compatibility, first try to get from localStorage
-    if (typeof window !== "undefined") {
-      const storedAssets = localStorage.getItem("mockAssets")
-      if (storedAssets) {
-        return JSON.parse(storedAssets)
-      }
-    }
-
-    // If not in browser or no stored assets, fetch from API
-    const supabase = createServerOnlyClient()
+    const supabase = createClient()
     const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
 
     if (error) {
@@ -37,7 +28,7 @@ export async function getAssets() {
  * @returns Asset object or null if not found
  */
 export async function getAssetById(id: string) {
-  const supabase = createServerOnlyClient()
+  const supabase = createClient()
 
   const { data, error } = await supabase.from("activos").select("*").eq("id", id).single()
 
@@ -55,7 +46,7 @@ export async function getAssetById(id: string) {
  * @returns Created asset
  */
 export async function createAsset(asset: Omit<Database["public"]["Tables"]["activos"]["Insert"], "id">) {
-  const supabase = createServerOnlyClient()
+  const supabase = createClient()
 
   const { data, error } = await supabase.from("activos").insert(asset).select().single()
 
@@ -74,7 +65,7 @@ export async function createAsset(asset: Omit<Database["public"]["Tables"]["acti
  * @returns Updated asset
  */
 export async function updateAsset(id: string, asset: Partial<Database["public"]["Tables"]["activos"]["Update"]>) {
-  const supabase = createServerOnlyClient()
+  const supabase = createClient()
 
   const { data, error } = await supabase.from("activos").update(asset).eq("id", id).select().single()
 
@@ -92,7 +83,7 @@ export async function updateAsset(id: string, asset: Partial<Database["public"][
  * @returns Success status
  */
 export async function deleteAsset(id: string) {
-  const supabase = createServerOnlyClient()
+  const supabase = createClient()
 
   const { error } = await supabase.from("activos").delete().eq("id", id)
 
