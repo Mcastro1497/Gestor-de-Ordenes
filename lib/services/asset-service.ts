@@ -6,16 +6,29 @@ import type { Database } from "@/lib/supabase/database.types"
  * @returns Array of assets
  */
 export async function getAssets() {
-  const supabase = createServerOnlyClient()
+  try {
+    // For client-side compatibility, first try to get from localStorage
+    if (typeof window !== "undefined") {
+      const storedAssets = localStorage.getItem("mockAssets")
+      if (storedAssets) {
+        return JSON.parse(storedAssets)
+      }
+    }
 
-  const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
+    // If not in browser or no stored assets, fetch from API
+    const supabase = createServerOnlyClient()
+    const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
 
-  if (error) {
-    console.error("Error fetching assets:", error)
-    throw new Error(`Failed to fetch assets: ${error.message}`)
+    if (error) {
+      console.error("Error fetching assets:", error)
+      throw new Error(`Failed to fetch assets: ${error.message}`)
+    }
+
+    return assets || []
+  } catch (error) {
+    console.error("Error in getAssets:", error)
+    return []
   }
-
-  return assets || []
 }
 
 /**
