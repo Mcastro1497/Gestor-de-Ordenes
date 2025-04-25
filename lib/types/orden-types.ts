@@ -39,15 +39,6 @@ export interface Orden {
   updated_at: string
   detalles?: OrdenDetalle[]
   observaciones?: OrdenObservacion[]
-  isSwap?: boolean
-  relatedOrderId?: string
-  swapType?: string
-  unreadUpdates?: number
-  lastUpdateType?: string
-  minPrice?: number
-  maxPrice?: number
-  executedQuantity?: number
-  executedPrice?: number
 }
 
 export interface OrdenDetalle {

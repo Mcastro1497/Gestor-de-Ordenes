@@ -1,9 +1,9 @@
 import { createServerClient as createSupaServerClient } from "@supabase/ssr"
-import { getCookies } from "../compatibility/headers"
+import { cookies } from "next/headers"
 import type { Database } from "./database.types"
 
 export function createServerClient() {
-  const cookieStore = getCookies()
+  const cookieStore = cookies()
 
   return createSupaServerClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
     cookies: {
