@@ -29,8 +29,13 @@ export function OrderDetails({ order }: { order: Order }) {
   const initialUnreadElements = order.unreadElements || { status: false, execution: false, observations: [] }
   const [unreadElements, setUnreadElements] = useState<Order["unreadElements"]>(initialUnreadElements)
 
+  // Initialize unreadElements with default values if order.unreadElements is undefined
   useEffect(() => {
-    setUnreadElements(order.unreadElements || { status: false, execution: false, observations: [] })
+    if (!order.unreadElements) {
+      setUnreadElements({ status: false, execution: false, observations: [] })
+    } else {
+      setUnreadElements(order.unreadElements)
+    }
   }, [order.unreadElements])
 
   // Marcar un elemento específico como leído
