@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -10,37 +10,57 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
+import { Loader2, CheckCircle } from "lucide-react"
 
 export function LoginForm() {
   const router = useRouter()
   const { supabase } = useSupabase()
   const [isLoading, setIsLoading] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+
+  // Verificar si ya hay una sesión activa al cargar
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (data.session) {
+        console.log("Sesión activa detectada, redirigiendo...")
+        router.push("/dashboard")
+      }
+    }
+
+    checkSession()
+  }, [supabase, router])
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
     setIsLoading(true)
 
     try {
-      console.log("Attempting to sign in with:", email)
+      console.log("Intentando iniciar sesión con:", email)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) {
-        console.error("Sign in error:", error)
+        console.error("Error al iniciar sesión:", error)
         toast.error("Error al iniciar sesión: " + error.message)
         return
       }
 
-      console.log("Sign in successful:", data.user)
+      console.log("Inicio de sesión exitoso:", data.user)
+      setIsSuccess(true)
       toast.success("Sesión iniciada correctamente")
-      router.push("/dashboard")
-      router.refresh()
+
+      // Esperar un momento para mostrar el mensaje de éxito
+      setTimeout(() => {
+        console.log("Redirigiendo al dashboard...")
+        router.push("/dashboard")
+      }, 1500)
     } catch (err) {
-      console.error("Error signing in:", err)
+      console.error("Error inesperado al iniciar sesión:", err)
       toast.error("Error inesperado al iniciar sesión")
     } finally {
       setIsLoading(false)
@@ -53,6 +73,14 @@ export function LoginForm() {
         <h1 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h1>
         <p className="text-sm text-muted-foreground">Ingresa tus credenciales para acceder a tu cuenta</p>
       </div>
+
+      {isSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative mb-4 flex items-center justify-center">
+          <CheckCircle className="h-5 w-5 mr-2" />
+          <span>Sesión iniciada correctamente. Redirigiendo...</span>
+        </div>
+      )}
+
       <div className="grid gap-6">
         <form onSubmit={onSubmit}>
           <div className="grid gap-4">
@@ -65,7 +93,7 @@ export function LoginForm() {
                 autoCapitalize="none"
                 autoComplete="email"
                 autoCorrect="off"
-                disabled={isLoading}
+                disabled={isLoading || isSuccess}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -88,14 +116,26 @@ export function LoginForm() {
                 autoCapitalize="none"
                 autoComplete="current-password"
                 autoCorrect="off"
-                disabled={isLoading}
+                disabled={isLoading || isSuccess}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
-            <Button disabled={isLoading} type="submit">
-              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+            <Button disabled={isLoading || isSuccess} type="submit">
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : isSuccess ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Redirigiendo...
+                </>
+              ) : (
+                "Iniciar sesión"
+              )}
             </Button>
           </div>
         </form>

@@ -15,12 +15,6 @@ export async function middleware(request: NextRequest) {
 
     if (error) {
       console.error("Error en middleware al obtener sesión:", error)
-      // En caso de error de sesión, redirigir a login
-      if (!request.nextUrl.pathname.startsWith("/auth")) {
-        const redirectUrl = new URL("/auth/login", request.url)
-        redirectUrl.searchParams.append("redirectedFrom", request.nextUrl.pathname)
-        return NextResponse.redirect(redirectUrl)
-      }
     }
 
     // Log the current path and session status for debugging
@@ -45,11 +39,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   } catch (error) {
     console.error("Error crítico en middleware:", error)
-    // En caso de error, redirigir a login
-    if (!request.nextUrl.pathname.startsWith("/auth")) {
-      const redirectUrl = new URL("/auth/login", request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
+    // En caso de error, permitir el acceso y dejar que la página maneje el error
     return NextResponse.next()
   }
 }
