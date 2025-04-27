@@ -11,37 +11,59 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
 
-export function LoginForm() {
+export function RegisterForm() {
   const router = useRouter()
   const { supabase } = useSupabase()
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
     setIsLoading(true)
 
+    if (password !== confirmPassword) {
+      toast.error("Las contraseñas no coinciden")
+      setIsLoading(false)
+      return
+    }
+
     try {
-      console.log("Attempting to sign in with:", email)
-      const { data, error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to sign up with:", email)
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
 
       if (error) {
-        console.error("Sign in error:", error)
-        toast.error("Error al iniciar sesión: " + error.message)
+        console.error("Sign up error:", error)
+        toast.error("Error al registrarse: " + error.message)
         return
       }
 
-      console.log("Sign in successful:", data.user)
-      toast.success("Sesión iniciada correctamente")
-      router.push("/dashboard")
-      router.refresh()
+      console.log("Sign up result:", data)
+
+      // Check if email confirmation is required
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        toast.error("Este correo ya está registrado. Por favor, inicia sesión o recupera tu contraseña.")
+        return
+      }
+
+      if (data.user && !data.session) {
+        toast.success("Registro exitoso. Por favor, verifica tu correo electrónico para confirmar tu cuenta.")
+        router.push("/auth/login")
+      } else if (data.user && data.session) {
+        toast.success("Registro exitoso. Has iniciado sesión automáticamente.")
+        router.push("/dashboard")
+        router.refresh()
+      }
     } catch (err) {
-      console.error("Error signing in:", err)
-      toast.error("Error inesperado al iniciar sesión")
+      console.error("Error signing up:", err)
+      toast.error("Error inesperado al registrarse")
     } finally {
       setIsLoading(false)
     }
@@ -50,8 +72,8 @@ export function LoginForm() {
   return (
     <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
       <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h1>
-        <p className="text-sm text-muted-foreground">Ingresa tus credenciales para acceder a tu cuenta</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Crear una cuenta</h1>
+        <p className="text-sm text-muted-foreground">Ingresa tus datos para crear una nueva cuenta</p>
       </div>
       <div className="grid gap-6">
         <form onSubmit={onSubmit}>
@@ -72,21 +94,13 @@ export function LoginForm() {
               />
             </div>
             <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 placeholder="••••••••"
                 type="password"
                 autoCapitalize="none"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 autoCorrect="off"
                 disabled={isLoading}
                 value={password}
@@ -94,8 +108,23 @@ export function LoginForm() {
                 required
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="confirm-password">Confirmar contraseña</Label>
+              <Input
+                id="confirm-password"
+                placeholder="••••••••"
+                type="password"
+                autoCapitalize="none"
+                autoComplete="new-password"
+                autoCorrect="off"
+                disabled={isLoading}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
             <Button disabled={isLoading} type="submit">
-              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+              {isLoading ? "Registrando..." : "Registrarse"}
             </Button>
           </div>
         </form>
@@ -108,9 +137,9 @@ export function LoginForm() {
           </div>
         </div>
         <div className="text-center text-sm">
-          ¿No tienes una cuenta?{" "}
-          <Link href="/auth/register" className="font-medium text-primary underline-offset-4 hover:underline">
-            Regístrate
+          ¿Ya tienes una cuenta?{" "}
+          <Link href="/auth/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            Inicia sesión
           </Link>
         </div>
       </div>

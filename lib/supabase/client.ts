@@ -11,16 +11,51 @@ export function createClient() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Faltan variables de entorno de Supabase:", {
+      url: supabaseUrl ? "✓" : "✗",
+      key: supabaseAnonKey ? "✓" : "✗",
+    })
     throw new Error("Faltan variables de entorno de Supabase")
   }
 
-  supabaseClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  })
+  console.log("Inicializando cliente de Supabase con URL:", supabaseUrl)
 
-  return supabaseClient
+  try {
+    supabaseClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: "supabase.auth.token",
+        storage: {
+          getItem: (key) => {
+            if (typeof window === "undefined") {
+              return null
+            }
+            const item = localStorage.getItem(key)
+            console.log(`Auth storage getItem: ${key}`, item ? "✓" : "✗")
+            return item
+          },
+          setItem: (key, value) => {
+            if (typeof window !== "undefined") {
+              console.log(`Auth storage setItem: ${key}`)
+              localStorage.setItem(key, value)
+            }
+          },
+          removeItem: (key) => {
+            if (typeof window !== "undefined") {
+              console.log(`Auth storage removeItem: ${key}`)
+              localStorage.removeItem(key)
+            }
+          },
+        },
+      },
+    })
+
+    console.log("Cliente de Supabase inicializado correctamente")
+    return supabaseClient
+  } catch (error) {
+    console.error("Error al inicializar el cliente de Supabase:", error)
+    throw error
+  }
 }

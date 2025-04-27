@@ -12,16 +12,46 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogOut, Settings, User } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/contexts/auth-provider"
 import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 
 export function UserNav() {
-  const { user, signOut } = useAuth()
   const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
+  const { user, signOut, loading } = useAuth() // Moved useAuth here
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Si no estamos en el cliente, mostramos un avatar genérico
+  if (!isClient) {
+    return (
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>...</AvatarFallback>
+        </Avatar>
+      </Button>
+    )
+  }
+
+  // Ahora que estamos en el cliente, podemos usar el hook useAuth
 
   const handleSignOut = async () => {
     await signOut()
     router.push("/auth/login")
+  }
+
+  // Si estamos cargando, mostramos un avatar genérico
+  if (loading) {
+    return (
+      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>...</AvatarFallback>
+        </Avatar>
+      </Button>
+    )
   }
 
   return (

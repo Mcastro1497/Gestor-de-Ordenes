@@ -3,29 +3,55 @@ import type { NextRequest } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 
 export async function middleware(request: NextRequest) {
-  // Create a Supabase client configured to use cookies
-  const supabase = createServerClient()
+  try {
+    // Create a Supabase client configured to use cookies
+    const supabase = createServerClient()
 
-  // Refresh session if expired - required for Server Components
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    // Refresh session if expired - required for Server Components
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession()
 
-  // If there's no session and the user is trying to access a protected route
-  if (!session && !request.nextUrl.pathname.startsWith("/auth")) {
-    // Redirect to login page
-    const redirectUrl = new URL("/auth/login", request.url)
-    redirectUrl.searchParams.append("redirectedFrom", request.nextUrl.pathname)
-    return NextResponse.redirect(redirectUrl)
+    if (error) {
+      console.error("Error en middleware al obtener sesión:", error)
+      // En caso de error de sesión, redirigir a login
+      if (!request.nextUrl.pathname.startsWith("/auth")) {
+        const redirectUrl = new URL("/auth/login", request.url)
+        redirectUrl.searchParams.append("redirectedFrom", request.nextUrl.pathname)
+        return NextResponse.redirect(redirectUrl)
+      }
+    }
+
+    // Log the current path and session status for debugging
+    console.log(`Middleware: Path=${request.nextUrl.pathname}, Session=${session ? "✓" : "✗"}`)
+
+    // If there's no session and the user is trying to access a protected route
+    if (!session && !request.nextUrl.pathname.startsWith("/auth")) {
+      console.log("Redirigiendo a login: no hay sesión activa")
+      // Redirect to login page
+      const redirectUrl = new URL("/auth/login", request.url)
+      redirectUrl.searchParams.append("redirectedFrom", request.nextUrl.pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // If there's a session and the user is trying to access auth pages
+    if (session && request.nextUrl.pathname.startsWith("/auth")) {
+      console.log("Redirigiendo a dashboard: sesión activa")
+      // Redirect to dashboard
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+
+    return NextResponse.next()
+  } catch (error) {
+    console.error("Error crítico en middleware:", error)
+    // En caso de error, redirigir a login
+    if (!request.nextUrl.pathname.startsWith("/auth")) {
+      const redirectUrl = new URL("/auth/login", request.url)
+      return NextResponse.redirect(redirectUrl)
+    }
+    return NextResponse.next()
   }
-
-  // If there's a session and the user is trying to access auth pages
-  if (session && request.nextUrl.pathname.startsWith("/auth")) {
-    // Redirect to dashboard
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  return NextResponse.next()
 }
 
 // Specify the paths that should be protected or checked by the middleware
