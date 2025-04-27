@@ -100,7 +100,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          email?: string
+          email?: string | null
           nombre?: string | null
           rol?: string
           created_at?: string
