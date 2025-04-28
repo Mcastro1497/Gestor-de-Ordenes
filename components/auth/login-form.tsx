@@ -2,43 +2,48 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
-import { Loader2, CheckCircle } from "lucide-react"
+import { Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
 
 export function LoginForm() {
-  const router = useRouter()
-  const { supabase } = useSupabase()
+  const { supabase, isConnected, connectionError } = useSupabase()
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [retryCount, setRetryCount] = useState(0)
 
-  // Verificar si ya hay una sesión activa al cargar
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession()
-      if (data.session) {
-        console.log("Sesión activa detectada, redirigiendo...")
-        router.push("/dashboard")
-      }
-    }
+  // Función para manejar la redirección manual
+  const handleManualRedirect = () => {
+    window.location.href = "/dashboard"
+  }
 
-    checkSession()
-  }, [supabase, router])
+  // Función para reintentar la conexión
+  const handleRetryConnection = () => {
+    setRetryCount((prev) => prev + 1)
+    window.location.reload()
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
     setIsLoading(true)
+    setLoginError(null)
 
     try {
       console.log("Intentando iniciar sesión con:", email)
+
+      if (!isConnected) {
+        throw new Error("No hay conexión con Supabase. Por favor, verifica tu conexión a internet.")
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -46,7 +51,7 @@ export function LoginForm() {
 
       if (error) {
         console.error("Error al iniciar sesión:", error)
-        toast.error("Error al iniciar sesión: " + error.message)
+        setLoginError(error.message)
         return
       }
 
@@ -54,14 +59,13 @@ export function LoginForm() {
       setIsSuccess(true)
       toast.success("Sesión iniciada correctamente")
 
-      // Esperar un momento para mostrar el mensaje de éxito
+      // Redirigir después de un breve retraso
       setTimeout(() => {
-        console.log("Redirigiendo al dashboard...")
-        router.push("/dashboard")
+        window.location.href = "/dashboard"
       }, 1500)
     } catch (err) {
       console.error("Error inesperado al iniciar sesión:", err)
-      toast.error("Error inesperado al iniciar sesión")
+      setLoginError(err instanceof Error ? err.message : "Error inesperado al iniciar sesión")
     } finally {
       setIsLoading(false)
     }
@@ -73,6 +77,24 @@ export function LoginForm() {
         <h1 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h1>
         <p className="text-sm text-muted-foreground">Ingresa tus credenciales para acceder a tu cuenta</p>
       </div>
+
+      {connectionError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            Error de conexión con el servidor. Por favor, verifica tu conexión a internet.
+            <Button variant="outline" size="sm" className="ml-2" onClick={handleRetryConnection}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {loginError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{loginError}</AlertDescription>
+        </Alert>
+      )}
 
       {isSuccess && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative mb-4 flex items-center justify-center">
@@ -139,6 +161,13 @@ export function LoginForm() {
             </Button>
           </div>
         </form>
+
+        {isSuccess && (
+          <Button variant="outline" onClick={handleManualRedirect}>
+            Ir al Dashboard manualmente
+          </Button>
+        )}
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />

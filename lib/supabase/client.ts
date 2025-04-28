@@ -32,22 +32,43 @@ export function createClient() {
             if (typeof window === "undefined") {
               return null
             }
-            const item = localStorage.getItem(key)
-            console.log(`Auth storage getItem: ${key}`, item ? "✓" : "✗")
-            return item
+            try {
+              const item = localStorage.getItem(key)
+              console.log(`Auth storage getItem: ${key}`, item ? "✓" : "✗")
+              return item
+            } catch (error) {
+              console.error(`Error al acceder a localStorage.getItem(${key}):`, error)
+              return null
+            }
           },
           setItem: (key, value) => {
             if (typeof window !== "undefined") {
-              console.log(`Auth storage setItem: ${key}`)
-              localStorage.setItem(key, value)
+              try {
+                console.log(`Auth storage setItem: ${key}`)
+                localStorage.setItem(key, value)
+              } catch (error) {
+                console.error(`Error al acceder a localStorage.setItem(${key}):`, error)
+              }
             }
           },
           removeItem: (key) => {
             if (typeof window !== "undefined") {
-              console.log(`Auth storage removeItem: ${key}`)
-              localStorage.removeItem(key)
+              try {
+                console.log(`Auth storage removeItem: ${key}`)
+                localStorage.removeItem(key)
+              } catch (error) {
+                console.error(`Error al acceder a localStorage.removeItem(${key}):`, error)
+              }
             }
           },
+        },
+      },
+      global: {
+        fetch: (...args) => {
+          return fetch(...args).catch((error) => {
+            console.error("Error en fetch de Supabase:", error)
+            throw error
+          })
         },
       },
     })

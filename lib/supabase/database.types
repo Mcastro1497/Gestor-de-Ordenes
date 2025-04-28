@@ -77,7 +77,7 @@ export interface Database {
           Ganancias?: string | null
           IVA?: string | null
           id?: string
-          nombre?: string
+          nombre?: string | null
           email?: string | null
           telefono?: string | null
           created_at?: string
