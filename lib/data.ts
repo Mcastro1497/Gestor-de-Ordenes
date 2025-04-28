@@ -365,6 +365,7 @@ export async function getCanceledOrders(): Promise<Order[]> {
   })
 }
 
+// Modificar la función getOrderById para buscar también en Supabase
 export async function getOrderById(id: string): Promise<Order | undefined> {
   console.log(`Buscando orden con ID: ${id}`)
 
@@ -374,14 +375,85 @@ export async function getOrderById(id: string): Promise<Order | undefined> {
     return undefined
   }
 
-  // Buscar la orden directamente en el array
-  const order = mockOrders.find((order) => order.id === id)
+  try {
+    // 1. Primero intentar buscar en Supabase si estamos en un entorno cliente
+    if (typeof window !== "undefined") {
+      try {
+        // Importar dinámicamente para evitar errores de SSR
+        const { OrdenService } = await import("./services/orden-supabase-service-client")
+        const ordenSupabase = await OrdenService.obtenerOrdenPorId(id)
 
-  // Registrar el resultado para depuración
-  console.log(`Resultado de búsqueda para ID ${id}:`, order ? "Orden encontrada" : "Orden no encontrada")
+        if (ordenSupabase) {
+          console.log("Orden encontrada en Supabase:", ordenSupabase.id)
 
-  // Devolver la orden encontrada o undefined
-  return order
+          // Convertir el formato de Supabase al formato de la aplicación
+          return {
+            id: ordenSupabase.id,
+            clientId: ordenSupabase.cliente_id,
+            client: ordenSupabase.cliente_nombre,
+            status: ordenSupabase.estado,
+            type: ordenSupabase.tipo_operacion,
+            asset: "Activo", // Valor por defecto
+            ticker: ordenSupabase.detalles?.[0]?.ticker || "N/A",
+            quantity: ordenSupabase.detalles?.[0]?.cantidad || 0,
+            price: ordenSupabase.detalles?.[0]?.precio || 0,
+            total: (ordenSupabase.detalles?.[0]?.cantidad || 0) * (ordenSupabase.detalles?.[0]?.precio || 0),
+            notes: ordenSupabase.notas || "",
+            commercial: "Comercial", // Valor por defecto
+            observations:
+              ordenSupabase.observaciones?.map((obs) => ({
+                id: obs.id,
+                text: obs.texto,
+                createdAt: new Date(obs.created_at),
+                userId: obs.usuario_id || "",
+                userName: obs.usuario_nombre || "Usuario",
+              })) || [],
+            createdAt: new Date(ordenSupabase.created_at),
+            updatedAt: new Date(ordenSupabase.updated_at),
+            plazo: ordenSupabase.plazo,
+            mercado: ordenSupabase.mercado,
+            unreadUpdates: 0,
+            unreadElements: undefined,
+          }
+        }
+      } catch (error) {
+        console.warn("Error al buscar en Supabase, continuando con búsqueda local:", error)
+      }
+    }
+
+    // 2. Buscar la orden directamente en el array mockOrders
+    const order = mockOrders.find((order) => order.id === id)
+
+    if (order) {
+      console.log(`Orden encontrada en mockOrders: ${order.id}`)
+      return order
+    }
+
+    // 3. Si no se encuentra, crear una orden temporal para evitar errores
+    console.log(`Orden con ID ${id} no encontrada. Creando orden temporal.`)
+    return {
+      id,
+      clientId: "temp-client",
+      client: "Cliente Temporal",
+      status: "No encontrada",
+      type: "Desconocido",
+      asset: "Activo Desconocido",
+      ticker: "N/A",
+      quantity: 0,
+      price: 0,
+      total: 0,
+      notes: "Esta orden no existe en el sistema.",
+      commercial: "N/A",
+      observations: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      unreadUpdates: 0,
+      unreadElements: undefined,
+    }
+  } catch (error) {
+    console.error(`Error al buscar orden con ID ${id}:`, error)
+    return undefined
+  }
 }
 
 // Añadir esta función si no existe

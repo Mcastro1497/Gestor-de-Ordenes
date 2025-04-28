@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,27 +11,16 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
-import { Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react"
+import { Loader2, CheckCircle, AlertTriangle } from "lucide-react"
 
 export function LoginForm() {
+  const router = useRouter()
   const { supabase, isConnected, connectionError } = useSupabase()
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [retryCount, setRetryCount] = useState(0)
-
-  // Función para manejar la redirección manual
-  const handleManualRedirect = () => {
-    window.location.href = "/dashboard"
-  }
-
-  // Función para reintentar la conexión
-  const handleRetryConnection = () => {
-    setRetryCount((prev) => prev + 1)
-    window.location.reload()
-  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -52,6 +42,7 @@ export function LoginForm() {
       if (error) {
         console.error("Error al iniciar sesión:", error)
         setLoginError(error.message)
+        setIsLoading(false)
         return
       }
 
@@ -59,16 +50,18 @@ export function LoginForm() {
       setIsSuccess(true)
       toast.success("Sesión iniciada correctamente")
 
-      // Redirigir después de un breve retraso
-      setTimeout(() => {
-        window.location.href = "/dashboard"
-      }, 1500)
+      // Redirigir a la página de redirección específica
+      router.push("/auth/redirect")
     } catch (err) {
       console.error("Error inesperado al iniciar sesión:", err)
       setLoginError(err instanceof Error ? err.message : "Error inesperado al iniciar sesión")
-    } finally {
       setIsLoading(false)
     }
+  }
+
+  // Función para manejar la redirección manual
+  const handleManualRedirect = () => {
+    window.location.href = "/dashboard"
   }
 
   return (
@@ -83,9 +76,6 @@ export function LoginForm() {
           <AlertTriangle className="h-4 w-4 mr-2" />
           <AlertDescription>
             Error de conexión con el servidor. Por favor, verifica tu conexión a internet.
-            <Button variant="outline" size="sm" className="ml-2" onClick={handleRetryConnection}>
-              <RefreshCw className="h-4 w-4 mr-1" /> Reintentar
-            </Button>
           </AlertDescription>
         </Alert>
       )}

@@ -77,7 +77,7 @@ export interface Database {
           Ganancias?: string | null
           IVA?: string | null
           id?: string
-          nombre?: string | null
+          nombre?: string
           email?: string | null
           telefono?: string | null
           created_at?: string
@@ -100,7 +100,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          email?: string | null
+          email?: string
           nombre?: string | null
           rol?: string
           created_at?: string
@@ -169,9 +169,6 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
       [_ in never]: never
     }
   }

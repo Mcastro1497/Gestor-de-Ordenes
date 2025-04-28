@@ -1,52 +1,56 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ExternalLink } from "lucide-react"
-import { OrdenService, type Orden } from "@/lib/services/orden-supabase-service-client"
-// import type { Orden } from "@/lib/services/orden-supabase-service"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Loader2 } from "lucide-react"
+import Link from "next/link"
 
-// Modificar el tipo Orden para incluir detalles
-type OrdenConDetalles = Orden & {
-  detalles?: Array<{
-    id: string
-    orden_id: string
-    ticker: string
-    cantidad: number
-    precio: number
-    es_orden_mercado: boolean
-    created_at: string
-  }>
+interface Order {
+  id: string
+  cliente: string
+  activo: string
+  tipo: string
+  estado: string
+  fecha: string
+  monto: number
 }
 
 export function RecentOrdersTable() {
-  // Actualizar el estado para usar el nuevo tipo
-  const [orders, setOrders] = useState<OrdenConDetalles[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Modificar la función fetchOrders para obtener los detalles
-    async function fetchOrders() {
+    const fetchOrders = async () => {
       try {
-        setLoading(true)
-        const ordenes = await OrdenService.obtenerOrdenes()
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from("ordenes")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(5)
 
-        // Obtener detalles para cada orden
-        const ordenesConDetalles = await Promise.all(
-          ordenes.slice(0, 5).map(async (orden) => {
-            const ordenCompleta = await OrdenService.obtenerOrdenPorId(orden.id)
-            return ordenCompleta || orden
-          }),
-        )
+        if (error) {
+          console.error("Error al obtener órdenes recientes:", error)
+          return
+        }
 
-        setOrders(ordenesConDetalles.filter(Boolean))
+        // Transformar los datos si es necesario
+        const formattedOrders = data.map((order) => ({
+          id: order.id,
+          cliente: order.cliente_nombre || "Cliente no especificado",
+          activo: order.activo_nombre || "Activo no especificado",
+          tipo: order.tipo || "No especificado",
+          estado: order.estado || "pendiente",
+          fecha: new Date(order.created_at).toLocaleDateString(),
+          monto: order.monto || 0,
+        }))
+
+        setOrders(formattedOrders)
       } catch (error) {
-        console.error("Error al cargar órdenes recientes:", error)
+        console.error("Error al obtener órdenes recientes:", error)
       } finally {
         setLoading(false)
       }
@@ -55,126 +59,84 @@ export function RecentOrdersTable() {
     fetchOrders()
   }, [])
 
-  // Función para mostrar el estado con el color adecuado
-  function getStatusBadge(status: string) {
+  const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
+      case "completada":
+        return <Badge className="bg-green-500">Completada</Badge>
       case "pendiente":
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-            Pendiente
-          </Badge>
-        )
-      case "tomada":
-        return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-            Tomada
-          </Badge>
-        )
-      case "ejecutada":
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            Ejecutada
-          </Badge>
-        )
-      case "ejecutada parcial":
-        return (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-            Parcial
-          </Badge>
-        )
+        return <Badge className="bg-yellow-500">Pendiente</Badge>
       case "cancelada":
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            Cancelada
-          </Badge>
-        )
-      case "revisar":
-        return (
-          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-            Revisar
-          </Badge>
-        )
+        return <Badge className="bg-red-500">Cancelada</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge className="bg-gray-500">{status}</Badge>
     }
   }
 
-  // Función para formatear la fecha
-  function formatDate(dateString: string) {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date)
+  if (loading) {
+    return (
+      <div className="rounded-md border">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-lg">Cargando órdenes recientes...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-md border">
+        <div className="flex flex-col items-center justify-center h-64">
+          <h3 className="text-lg font-medium">No hay órdenes recientes</h3>
+          <p className="text-sm text-muted-foreground mt-2">Las órdenes recientes aparecerán aquí</p>
+          <Button className="mt-4" asChild>
+            <Link href="/orders/create">Crear nueva orden</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Órdenes Recientes</CardTitle>
-        <CardDescription>Las últimas órdenes ingresadas en el sistema</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="space-y-2">
-            {Array(5)
-              .fill(0)
-              .map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              ))}
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">No hay órdenes recientes para mostrar</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Cuenta</TableHead>
-                <TableHead>Activo</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-medium">Órdenes Recientes</h3>
+        <Button asChild>
+          <Link href="/orders">Ver todas</Link>
+        </Button>
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Activo</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead className="text-right">Monto</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
+                    {order.id.substring(0, 8)}...
+                  </Link>
+                </TableCell>
+                <TableCell>{order.cliente}</TableCell>
+                <TableCell>{order.activo}</TableCell>
+                <TableCell>{order.tipo}</TableCell>
+                <TableCell>{getStatusBadge(order.estado)}</TableCell>
+                <TableCell>{order.fecha}</TableCell>
+                <TableCell className="text-right">${order.monto.toLocaleString()}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.cliente_nombre || "Cliente sin nombre"}</TableCell>
-                  <TableCell>{order.cliente_cuenta || "N/A"}</TableCell>
-                  <TableCell>
-                    {order.detalles && order.detalles.length > 0
-                      ? order.detalles.map((d) => d.ticker).join(", ")
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>{order.tipo_operacion}</TableCell>
-                  <TableCell>{getStatusBadge(order.estado)}</TableCell>
-                  <TableCell>{formatDate(order.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/ordenes/${order.id}`}>
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        Ver
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-        <div className="mt-4 flex justify-end">
-          <Button variant="outline" asChild>
-            <Link href="/ordenes">Ver todas las órdenes</Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   )
 }
