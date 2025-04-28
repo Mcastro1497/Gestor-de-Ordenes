@@ -1,6 +1,6 @@
-import type React from "react"
-;('"use client')
+"use client"
 
+import type React from "react"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { FixedSizeList as List } from "react-window"
 import { Input } from "@/components/ui/input"
