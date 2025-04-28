@@ -50,18 +50,16 @@ export function LoginForm() {
       setIsSuccess(true)
       toast.success("Sesión iniciada correctamente")
 
-      // Redirigir a la página de redirección específica
-      router.push("/auth/redirect")
+      // Esperar un momento para asegurarse de que la sesión se guarde
+      setTimeout(() => {
+        // Usar window.location para una redirección completa
+        window.location.href = "/dashboard"
+      }, 1000)
     } catch (err) {
       console.error("Error inesperado al iniciar sesión:", err)
       setLoginError(err instanceof Error ? err.message : "Error inesperado al iniciar sesión")
       setIsLoading(false)
     }
-  }
-
-  // Función para manejar la redirección manual
-  const handleManualRedirect = () => {
-    window.location.href = "/dashboard"
   }
 
   return (
@@ -153,7 +151,7 @@ export function LoginForm() {
         </form>
 
         {isSuccess && (
-          <Button variant="outline" onClick={handleManualRedirect}>
+          <Button variant="outline" onClick={() => (window.location.href = "/dashboard")} className="mt-4">
             Ir al Dashboard manualmente
           </Button>
         )}

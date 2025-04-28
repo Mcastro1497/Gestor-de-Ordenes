@@ -4,6 +4,13 @@ import { createServerClient } from "@/lib/supabase/server"
 
 export async function middleware(request: NextRequest) {
   try {
+    // Si la URL es /dashboard, permitir el acceso sin verificación
+    // Esto es temporal para solucionar el problema de redirección
+    if (request.nextUrl.pathname === "/dashboard") {
+      console.log("Acceso directo al dashboard permitido")
+      return NextResponse.next()
+    }
+
     // Create a Supabase client configured to use cookies
     const supabase = createServerClient()
 
@@ -20,11 +27,6 @@ export async function middleware(request: NextRequest) {
     // Log the current path and session status for debugging
     console.log(`Middleware: Path=${request.nextUrl.pathname}, Session=${session ? "✓" : "✗"}`)
 
-    // Si estamos en la página de redirección, permitir siempre
-    if (request.nextUrl.pathname === "/auth/redirect") {
-      return NextResponse.next()
-    }
-
     // If there's no session and the user is trying to access a protected route
     if (!session && !request.nextUrl.pathname.startsWith("/auth")) {
       console.log("Redirigiendo a login: no hay sesión activa")
@@ -35,7 +37,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // If there's a session and the user is trying to access auth pages
-    if (session && request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/auth/redirect") {
+    if (session && request.nextUrl.pathname.startsWith("/auth")) {
       console.log("Redirigiendo a dashboard: sesión activa")
       // Redirect to dashboard
       return NextResponse.redirect(new URL("/dashboard", request.url))
