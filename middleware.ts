@@ -1,45 +1,47 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 
 export async function middleware(request: NextRequest) {
-  // Create a Supabase client configured to use cookies
-  const supabase = createServerClient()
+  // Create a response to modify
+  const res = NextResponse.next()
 
-  // Refresh session if expired - required for Server Components
+  // Create a Supabase client configured to use cookies
+  const supabase = createMiddlewareClient({ req: request, res })
+
+  // Refresh session if expired
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // If there's no session and the user is trying to access a protected route
-  if (!session && !request.nextUrl.pathname.startsWith("/auth")) {
-    // Redirect to login page
-    const redirectUrl = new URL("/auth/login", request.url)
-    redirectUrl.searchParams.append("redirectedFrom", request.nextUrl.pathname)
+  // Lista de rutas públicas que no requieren autenticación
+  const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password"]
+  const isPublicRoute = publicRoutes.some((route) => request.nextUrl.pathname === route)
+
+  // Si no hay sesión y la ruta no es pública, redirigir a login
+  if (!session && !isPublicRoute) {
+    const redirectUrl = new URL("/login", request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If there's a session and the user is trying to access auth pages
-  if (session && request.nextUrl.pathname.startsWith("/auth")) {
-    // Redirect to dashboard
+  // Si hay sesión y la ruta es pública, redirigir al dashboard
+  if (session && isPublicRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  return NextResponse.next()
+  return res
 }
 
-// Specify the paths that should be protected or checked by the middleware
+// Specify the paths that should be checked by the middleware
 export const config = {
   matcher: [
-    // Protected routes that require authentication
-    "/",
-    "/dashboard/:path*",
-    "/orders/:path*",
-    "/ordenes/:path*",
-    "/config/:path*",
-    "/trading/:path*",
-    "/admin/:path*",
-    // Auth routes that should redirect to dashboard if already authenticated
-    "/auth/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|public).*)",
   ],
 }

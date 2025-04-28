@@ -1,27 +1,52 @@
 "use client"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, Settings, User } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 export function UserNav() {
-  const { user, signOut } = useAuth()
   const router = useRouter()
+  const supabase = createClientComponentClient()
+  const [userEmail, setUserEmail] = useState("")
+
+  useEffect(() => {
+    const getUserEmail = async () => {
+      const { data } = await supabase.auth.getUser()
+      if (data.user) {
+        setUserEmail(data.user.email || "")
+      }
+    }
+
+    getUserEmail()
+  }, [supabase])
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push("/auth/login")
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      toast.error("Error al cerrar sesión: " + error.message)
+    } else {
+      toast.success("Sesión cerrada correctamente")
+      router.push("/login")
+      router.refresh()
+    }
+  }
+
+  // Obtener las iniciales del email para el avatar
+  const getInitials = (email: string) => {
+    if (!email) return "U"
+    return email.charAt(0).toUpperCase()
   }
 
   return (
@@ -29,34 +54,21 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="/placeholder-user.jpg" alt={user?.email || "@usuario"} />
-            <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase() || "U"}</AvatarFallback>
+            <AvatarFallback>{getInitials(userEmail)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.user_metadata?.name || user?.email || "Usuario"}</p>
-            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+            <p className="text-sm font-medium leading-none">{userEmail}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User className="mr-2 h-4 w-4" />
-            <span>Perfil</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Configuración</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        <DropdownMenuItem onClick={() => router.push("/profile")}>Perfil</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/settings")}>Configuración</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Cerrar sesión</span>
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSignOut}>Cerrar sesión</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
