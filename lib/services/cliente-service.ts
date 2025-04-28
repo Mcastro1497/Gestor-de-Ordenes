@@ -84,3 +84,6 @@ export async function deleteCliente(id: string) {
   revalidatePath("/clientes")
   return { success: true }
 }
+
+// Alias para compatibilidad con código que espera la función en inglés
+export const getClients = getClientes

@@ -8,7 +8,7 @@ import type { Database } from "@/lib/supabase/database.types"
 export async function getAssets() {
   try {
     const supabase = createClient()
-    const { data: assets, error } = await supabase.from("activos").select("*")
+    const { data: assets, error } = await supabase.from("activos").select("*").order("ticker")
 
     if (error) {
       console.error("Error al obtener activos:", error)
@@ -93,4 +93,38 @@ export async function deleteAsset(id: string) {
   }
 
   return true
+}
+
+/**
+ * Deletes all assets from the database
+ * @returns Success status
+ */
+export async function deleteAllAssets() {
+  const supabase = createClient()
+
+  const { error } = await supabase.from("activos").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+
+  if (error) {
+    console.error("Error al eliminar todos los activos:", error)
+    throw new Error(`Error al eliminar todos los activos: ${error.message}`)
+  }
+
+  return true
+}
+
+/**
+ * Maps a local asset to the database schema
+ * @param asset Local asset object
+ * @returns Asset object formatted for the database
+ */
+export function mapAssetToDbSchema(asset: any) {
+  return {
+    ticker: asset.ticker || asset.symbol,
+    nombre: asset.name || asset.nombre,
+    descripcion: asset.description || asset.descripcion || "",
+    mercado: asset.market || asset.mercado || "",
+    moneda: asset.currency || asset.moneda || "",
+    tipo: asset.type || asset.tipo || "",
+    precio_ultimo: asset.lastPrice || asset.precio_ultimo || 0,
+  }
 }
