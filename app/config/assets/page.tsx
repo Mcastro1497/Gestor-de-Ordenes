@@ -8,6 +8,7 @@ import { AssetsList } from "@/components/config/assets-list"
 import { AssetsImporter } from "@/components/config/assets-importer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
+import { AssetsSyncWithSupabase } from "@/components/config/assets-supabase-sync"
 
 export default function AssetsConfigPage() {
   const [assets, setAssets] = useState<Asset[]>([])
@@ -75,9 +76,10 @@ export default function AssetsConfigPage() {
       </div>
 
       <Tabs defaultValue="list" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="list">Lista de Activos</TabsTrigger>
           <TabsTrigger value="import">Importar Activos</TabsTrigger>
+          <TabsTrigger value="sync">Sincronizar</TabsTrigger>
         </TabsList>
         <TabsContent value="list">
           <Card>
@@ -104,6 +106,17 @@ export default function AssetsConfigPage() {
             </CardHeader>
             <CardContent>
               <AssetsImporter onImportComplete={fetchAssets} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="sync">
+          <Card>
+            <CardHeader>
+              <CardTitle>Sincronización con Supabase</CardTitle>
+              <CardDescription>Sincroniza los activos importados con la base de datos Supabase.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AssetsSyncWithSupabase />
             </CardContent>
           </Card>
         </TabsContent>

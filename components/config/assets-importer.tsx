@@ -26,6 +26,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import type { Asset } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { createClient } from "@/lib/supabase/client"
 
 // Función para debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -44,7 +46,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-export function AssetsImporter() {
+export function AssetsImporter({ onImportComplete }: { onImportComplete?: () => void }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -55,6 +57,7 @@ export function AssetsImporter() {
   const [success, setSuccess] = useState(false)
   const [dataSource, setDataSource] = useState<"localStorage" | "example" | "api" | null>(null)
   const [apiStatus, setApiStatus] = useState<"checking" | "available" | "unavailable" | "error">("checking")
+  const [autoSyncWithSupabase, setAutoSyncWithSupabase] = useState(false)
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1)
@@ -142,6 +145,55 @@ export function AssetsImporter() {
     return filteredAssets.slice(startIndex, startIndex + pageSize)
   }, [filteredAssets, currentPage, pageSize])
 
+  const syncWithSupabase = async (importedAssets: Asset[]) => {
+    if (!autoSyncWithSupabase) return
+
+    try {
+      // Preparar los activos para inserción en Supabase
+      const assetsForSupabase = importedAssets.map((asset) => ({
+        ticker: asset.ticker,
+        nombre: asset.name,
+        descripcion: `${asset.name} - ${asset.type || ""}`,
+        mercado: asset.market,
+        moneda: asset.currency,
+        tipo: asset.type,
+        precio_ultimo: asset.lastPrice || 0,
+        // No incluimos id ya que es un UUID generado automáticamente
+      }))
+
+      // Inicializar cliente de Supabase
+      const supabase = createClient()
+
+      // Primero, eliminar todos los registros existentes
+      const { error: deleteError } = await supabase
+        .from("activos")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000")
+
+      if (deleteError) {
+        throw new Error(`Error al limpiar la tabla de activos: ${deleteError.message}`)
+      }
+
+      // Insertar los nuevos activos
+      const { error } = await supabase.from("activos").insert(assetsForSupabase)
+
+      if (error) {
+        throw new Error(`Error al sincronizar activos: ${error.message}`)
+      }
+
+      toast({
+        title: "Sincronización automática completada",
+        description: `Se han sincronizado ${importedAssets.length} activos con Supabase.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error en sincronización automática",
+        description: error instanceof Error ? error.message : "Error desconocido al sincronizar activos",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleImportAssets = async () => {
     let progressInterval: NodeJS.Timeout
     try {
@@ -175,6 +227,8 @@ export function AssetsImporter() {
       setDataSource("api")
       setApiStatus("available")
 
+      await syncWithSupabase(importedAssets)
+
       // Calcular el número total de páginas
       setTotalPages(Math.ceil(importedAssets.length / pageSize))
       setCurrentPage(1) // Resetear a la primera página
@@ -183,6 +237,11 @@ export function AssetsImporter() {
         title: "Importación exitosa",
         description: `Se han importado ${importedAssets.length} activos correctamente.`,
       })
+
+      // Llamar al callback si existe
+      if (onImportComplete) {
+        onImportComplete()
+      }
 
       // Forzar revalidación de rutas para actualizar los datos
       router.refresh()
@@ -231,7 +290,7 @@ export function AssetsImporter() {
     }
   }
 
-  const handleLoadExampleData = () => {
+  const handleLoadExampleData = async () => {
     try {
       setIsLoading(true)
       setProgress(50)
@@ -246,6 +305,10 @@ export function AssetsImporter() {
       setSuccess(true)
       setDataSource("example")
 
+      if (autoSyncWithSupabase) {
+        await syncWithSupabase(exampleAssets)
+      }
+
       // Calcular el número total de páginas
       setTotalPages(Math.ceil(exampleAssets.length / pageSize))
       setCurrentPage(1) // Resetear a la primera página
@@ -254,6 +317,11 @@ export function AssetsImporter() {
         title: "Datos de ejemplo cargados",
         description: `Se han cargado ${exampleAssets.length} activos de ejemplo.`,
       })
+
+      // Llamar al callback si existe
+      if (onImportComplete) {
+        onImportComplete()
+      }
 
       // Forzar revalidación de rutas para actualizar los datos
       router.refresh()
@@ -318,6 +386,21 @@ export function AssetsImporter() {
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Add this checkbox for auto-sync */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="auto-sync"
+          checked={autoSyncWithSupabase}
+          onCheckedChange={(checked) => setAutoSyncWithSupabase(checked as boolean)}
+        />
+        <label
+          htmlFor="auto-sync"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Sincronizar automáticamente con Supabase después de importar
+        </label>
       </div>
 
       {isLoading && (

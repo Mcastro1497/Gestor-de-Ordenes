@@ -1,148 +1,159 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
     Tables: {
-      activos: {
-        Row: {
-          change: number | null
-          created_at: string
-          currency: string | null
-          id: string
-          lastPrice: number | null
-          market: string | null
-          maturityDate: string | null
-          name: string | null
-          ticker: string | null
-          type: string | null
-          volume: number | null
-        }
-        Insert: {
-          change?: number | null
-          created_at?: string
-          currency?: string | null
-          id?: string
-          lastPrice?: number | null
-          market?: string | null
-          maturityDate?: string | null
-          name?: string | null
-          ticker?: string | null
-          type?: string | null
-          volume?: number | null
-        }
-        Update: {
-          change?: number | null
-          created_at?: string
-          currency?: string | null
-          id?: string
-          lastPrice?: number | null
-          market?: string | null
-          maturityDate?: string | null
-          name?: string | null
-          ticker?: string | null
-          type?: string | null
-          volume?: number | null
-        }
-        Relationships: []
-      }
       clientes: {
         Row: {
-          accountNumber: string | null
-          address: string | null
-          commercialId: string | null
-          documentNumber: string | null
-          documentType: string | null
+          ID: string | null
+          "Tipo de cuenta": string | null
+          Estado: string | null
+          Denominación: string | null
+          "Cuenta Especial (CNV RG5528/2024)": string | null
+          Alias: string | null
+          Titular: string | null
+          "Tipo Titular": string | null
+          Cartera: string | null
+          Categoría: string | null
+          Administrador: string | null
+          Operador: string | null
+          Sucursal: string | null
+          "Clase de cuenta": string | null
+          CUIT: string | null
+          Ganancias: string | null
+          IVA: string | null
+          id: string
+          nombre: string
           email: string | null
-          id: string
-          name: string | null
-          phone: string | null
+          telefono: string | null
+          created_at: string
         }
         Insert: {
-          accountNumber?: string | null
-          address?: string | null
-          commercialId?: string | null
-          documentNumber?: string | null
-          documentType?: string | null
+          ID?: string | null
+          "Tipo de cuenta"?: string | null
+          Estado?: string | null
+          Denominación?: string | null
+          "Cuenta Especial (CNV RG5528/2024)"?: string | null
+          Alias?: string | null
+          Titular?: string | null
+          "Tipo Titular"?: string | null
+          Cartera?: string | null
+          Categoría?: string | null
+          Administrador?: string | null
+          Operador?: string | null
+          Sucursal?: string | null
+          "Clase de cuenta"?: string | null
+          CUIT?: string | null
+          Ganancias?: string | null
+          IVA?: string | null
+          id?: string
+          nombre: string
           email?: string | null
-          id: string
-          name?: string | null
-          phone?: string | null
+          telefono?: string | null
+          created_at?: string
         }
         Update: {
-          accountNumber?: string | null
-          address?: string | null
-          commercialId?: string | null
-          documentNumber?: string | null
-          documentType?: string | null
-          email?: string | null
+          ID?: string | null
+          "Tipo de cuenta"?: string | null
+          Estado?: string | null
+          Denominación?: string | null
+          "Cuenta Especial (CNV RG5528/2024)"?: string | null
+          Alias?: string | null
+          Titular?: string | null
+          "Tipo Titular"?: string | null
+          Cartera?: string | null
+          Categoría?: string | null
+          Administrador?: string | null
+          Operador?: string | null
+          Sucursal?: string | null
+          "Clase de cuenta"?: string | null
+          CUIT?: string | null
+          Ganancias?: string | null
+          IVA?: string | null
           id?: string
-          name?: string | null
-          phone?: string | null
+          nombre?: string
+          email?: string | null
+          telefono?: string | null
+          created_at?: string
         }
-        Relationships: []
       }
-      orders: {
+      usuarios: {
         Row: {
-          asset: string | null
-          assetId: string | null
-          client: string | null
-          clientId: string | null
-          commercial: string | null
-          commercialId: string | null
-          createdAt: string | null
           id: string
-          notes: string | null
-          price: number | null
-          quantity: number | null
-          status: string | null
-          ticker: string | null
-          total: number | null
-          type: string | null
-          updatedAt: string | null
+          email: string
+          nombre: string | null
+          rol: string
+          created_at: string
         }
         Insert: {
-          asset?: string | null
-          assetId?: string | null
-          client?: string | null
-          clientId?: string | null
-          commercial?: string | null
-          commercialId?: string | null
-          createdAt?: string | null
-          id: string
-          notes?: string | null
-          price?: number | null
-          quantity?: number | null
-          status?: string | null
-          ticker?: string | null
-          total?: number | null
-          type?: string | null
-          updatedAt?: string | null
+          id?: string
+          email: string
+          nombre?: string | null
+          rol?: string
+          created_at?: string
         }
         Update: {
-          asset?: string | null
-          assetId?: string | null
-          client?: string | null
-          clientId?: string | null
-          commercial?: string | null
-          commercialId?: string | null
-          createdAt?: string | null
           id?: string
-          notes?: string | null
-          price?: number | null
-          quantity?: number | null
-          status?: string | null
-          ticker?: string | null
-          total?: number | null
-          type?: string | null
-          updatedAt?: string | null
+          email?: string
+          nombre?: string | null
+          rol?: string
+          created_at?: string
         }
-        Relationships: []
+      }
+      ordenes: {
+        Row: {
+          id: string
+          cliente_id: string
+          trader_id: string | null
+          estado: string
+          observaciones: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          cliente_id: string
+          trader_id?: string | null
+          estado?: string
+          observaciones?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          cliente_id?: string
+          trader_id?: string | null
+          estado?: string
+          observaciones?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      activos: {
+        Row: {
+          id: string
+          orden_id: string
+          tipo: string
+          descripcion: string | null
+          valor: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          orden_id: string
+          tipo: string
+          descripcion?: string | null
+          valor?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          orden_id?: string
+          tipo?: string
+          descripcion?: string | null
+          valor?: number | null
+          created_at?: string
+        }
       }
     }
     Views: {
