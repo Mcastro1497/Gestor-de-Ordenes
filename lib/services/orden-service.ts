@@ -6,14 +6,7 @@ import { revalidatePath } from "next/cache"
 export async function getOrdenes() {
   const supabase = createServerClient()
 
-  const { data, error } = await supabase
-    .from("ordenes")
-    .select(`
-      *,
-      clientes (id, nombre),
-      activos (*)
-    `)
-    .order("created_at", { ascending: false })
+  const { data, error } = await supabase.from("ordenes").select("*").order("created_at", { ascending: false })
 
   if (error) {
     console.error("Error al obtener órdenes:", error)
@@ -26,15 +19,7 @@ export async function getOrdenes() {
 export async function getOrdenById(id: string) {
   const supabase = createServerClient()
 
-  const { data, error } = await supabase
-    .from("ordenes")
-    .select(`
-      *,
-      clientes (id, nombre, email, telefono),
-      activos (*)
-    `)
-    .eq("id", id)
-    .single()
+  const { data, error } = await supabase.from("ordenes").select("*").eq("id", id).single()
 
   if (error) {
     console.error("Error al obtener orden:", error)
@@ -47,66 +32,63 @@ export async function getOrdenById(id: string) {
 export async function createOrden(formData: FormData) {
   const supabase = createServerClient()
 
-  // Extraer datos básicos de la orden
-  const cliente_id = formData.get("cliente_id") as string
-  const observaciones = formData.get("observaciones") as string
+  try {
+    const clienteId = formData.get("cliente_id") as string
+    const observaciones = formData.get("observaciones") as string
 
-  // Iniciar una transacción
-  // Nota: Supabase no soporta transacciones directamente en el cliente,
-  // así que manejamos esto con múltiples operaciones
+    // Obtener todos los tipos, descripciones y valores
+    const tipos = formData.getAll("tipo") as string[]
+    const descripciones = formData.getAll("descripcion") as string[]
+    const valores = formData.getAll("valor") as string[]
 
-  // 1. Crear la orden
-  const { data: orden, error: ordenError } = await supabase
-    .from("ordenes")
-    .insert([{ cliente_id, observaciones, estado: "pendiente" }])
-    .select()
-    .single()
+    // Crear un array de activos
+    const activos = tipos.map((tipo, index) => ({
+      tipo,
+      descripcion: descripciones[index],
+      valor: valores[index],
+    }))
 
-  if (ordenError) {
-    console.error("Error al crear orden:", ordenError)
-    return { success: false, error: ordenError.message }
-  }
+    // Insertar la orden en la base de datos
+    const { data, error } = await supabase
+      .from("ordenes")
+      .insert([
+        {
+          cliente_id: clienteId,
+          observaciones,
+          activos,
+          estado: "pendiente",
+        },
+      ])
+      .select()
 
-  // 2. Extraer y procesar activos
-  const tipos = formData.getAll("tipo") as string[]
-  const descripciones = formData.getAll("descripcion") as string[]
-  const valores = formData.getAll("valor") as string[]
-
-  const activos = tipos.map((tipo, index) => ({
-    orden_id: orden.id,
-    tipo,
-    descripcion: descripciones[index],
-    valor: Number.parseFloat(valores[index]),
-  }))
-
-  // 3. Insertar activos
-  if (activos.length > 0) {
-    const { error: activosError } = await supabase.from("activos").insert(activos)
-
-    if (activosError) {
-      console.error("Error al crear activos:", activosError)
-      // Idealmente, deberíamos eliminar la orden si falla la inserción de activos
-      // pero mantendremos simple este ejemplo
-      return { success: false, error: activosError.message }
+    if (error) {
+      console.error("Error al crear orden:", error)
+      return { success: false, error: error.message }
     }
-  }
 
-  revalidatePath("/ordenes")
-  return { success: true, data: orden }
+    revalidatePath("/ordenes")
+    return { success: true, data }
+  } catch (error) {
+    console.error("Error al crear orden:", error)
+    return { success: false, error: "Error al procesar la solicitud" }
+  }
 }
 
-export async function updateOrdenEstado(id: string, estado: string, observaciones?: string) {
+export async function updateOrden(id: string, formData: FormData) {
   const supabase = createServerClient()
 
-  const updateData: any = { estado }
-  if (observaciones) {
-    updateData.observaciones = observaciones
-  }
+  const clienteId = formData.get("cliente_id") as string
+  const observaciones = formData.get("observaciones") as string
+  const estado = formData.get("estado") as string
 
-  const { data, error } = await supabase.from("ordenes").update(updateData).eq("id", id).select()
+  const { data, error } = await supabase
+    .from("ordenes")
+    .update({ cliente_id: clienteId, observaciones, estado })
+    .eq("id", id)
+    .select()
 
   if (error) {
-    console.error("Error al actualizar estado de orden:", error)
+    console.error("Error al actualizar orden:", error)
     return { success: false, error: error.message }
   }
 
@@ -118,8 +100,6 @@ export async function updateOrdenEstado(id: string, estado: string, observacione
 export async function deleteOrden(id: string) {
   const supabase = createServerClient()
 
-  // Debido a las restricciones de clave foránea con ON DELETE CASCADE,
-  // los activos asociados se eliminarán automáticamente
   const { error } = await supabase.from("ordenes").delete().eq("id", id)
 
   if (error) {

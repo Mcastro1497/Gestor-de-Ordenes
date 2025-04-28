@@ -1,6 +1,6 @@
 import { getClientes } from "@/lib/services/cliente-service"
 import { getAssets } from "@/lib/services/asset-service"
-import { OrderCreationWizard } from "@/components/order-creation-wizard"
+import { OrderCreationForm } from "@/components/new-order-form/order-creation-form"
 
 export default async function NuevaOrdenPage() {
   const clientes = await getClientes()
@@ -9,7 +9,7 @@ export default async function NuevaOrdenPage() {
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-2xl font-bold mb-6">Crear Nueva Orden</h1>
-      <OrderCreationWizard clients={clientes} assets={assets} />
+      <OrderCreationForm clientes={clientes} assets={assets} />
     </div>
   )
 }

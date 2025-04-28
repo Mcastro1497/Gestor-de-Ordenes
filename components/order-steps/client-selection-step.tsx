@@ -13,14 +13,19 @@ interface ClientSelectionStepProps {
   onClientSelect: (client: Client) => void
 }
 
-export function ClientSelectionStep({ clients, selectedClientId, onClientSelect }: ClientSelectionStepProps) {
+export function ClientSelectionStep({ clients = [], selectedClientId, onClientSelect }: ClientSelectionStepProps) {
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Filtrar clientes según la búsqueda
-  const filteredClients = clients.filter(
-    (client) =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) || client.documentNumber.includes(searchQuery),
-  )
+  // Filtrar clientes según la búsqueda con verificación de campos undefined
+  const filteredClients = clients.filter((client) => {
+    const clientName = client.name || client.nombre || ""
+    const clientDocNumber = client.documentNumber || client.documento || ""
+
+    return (
+      clientName.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+      clientDocNumber.toString().includes(searchQuery)
+    )
+  })
 
   return (
     <div className="space-y-6">
@@ -54,11 +59,12 @@ export function ClientSelectionStep({ clients, selectedClientId, onClientSelect 
             {filteredClients.length > 0 ? (
               filteredClients.map((client) => (
                 <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
+                  <TableCell className="font-medium">{client.name || client.nombre || "Sin nombre"}</TableCell>
                   <TableCell>
-                    {client.documentType} {client.documentNumber}
+                    {client.documentType || client.tipoDocumento || ""}{" "}
+                    {client.documentNumber || client.documento || ""}
                   </TableCell>
-                  <TableCell>{client.accountNumber}</TableCell>
+                  <TableCell>{client.accountNumber || client.numeroCuenta || ""}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="outline" size="sm" onClick={() => onClientSelect(client)}>
                       Seleccionar

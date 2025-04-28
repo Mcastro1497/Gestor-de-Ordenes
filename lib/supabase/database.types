@@ -9,157 +9,140 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      clientes: {
-        Row: {
-          ID: string | null
-          "Tipo de cuenta": string | null
-          Estado: string | null
-          Denominación: string | null
-          "Cuenta Especial (CNV RG5528/2024)": string | null
-          Alias: string | null
-          Titular: string | null
-          "Tipo Titular": string | null
-          Cartera: string | null
-          Categoría: string | null
-          Administrador: string | null
-          Operador: string | null
-          Sucursal: string | null
-          "Clase de cuenta": string | null
-          CUIT: string | null
-          Ganancias: string | null
-          IVA: string | null
-          id: string
-          nombre: string
-          email: string | null
-          telefono: string | null
-          created_at: string
-        }
-        Insert: {
-          ID?: string | null
-          "Tipo de cuenta"?: string | null
-          Estado?: string | null
-          Denominación?: string | null
-          "Cuenta Especial (CNV RG5528/2024)"?: string | null
-          Alias?: string | null
-          Titular?: string | null
-          "Tipo Titular"?: string | null
-          Cartera?: string | null
-          Categoría?: string | null
-          Administrador?: string | null
-          Operador?: string | null
-          Sucursal?: string | null
-          "Clase de cuenta"?: string | null
-          CUIT?: string | null
-          Ganancias?: string | null
-          IVA?: string | null
-          id?: string
-          nombre: string
-          email?: string | null
-          telefono?: string | null
-          created_at?: string
-        }
-        Update: {
-          ID?: string | null
-          "Tipo de cuenta"?: string | null
-          Estado?: string | null
-          Denominación?: string | null
-          "Cuenta Especial (CNV RG5528/2024)"?: string | null
-          Alias?: string | null
-          Titular?: string | null
-          "Tipo Titular"?: string | null
-          Cartera?: string | null
-          Categoría?: string | null
-          Administrador?: string | null
-          Operador?: string | null
-          Sucursal?: string | null
-          "Clase de cuenta"?: string | null
-          CUIT?: string | null
-          Ganancias?: string | null
-          IVA?: string | null
-          id?: string
-          nombre?: string
-          email?: string | null
-          telefono?: string | null
-          created_at?: string
-        }
-      }
-      usuarios: {
-        Row: {
-          id: string
-          email: string
-          nombre: string | null
-          rol: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          email: string
-          nombre?: string | null
-          rol?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string | null
-          nombre?: string | null
-          rol?: string
-          created_at?: string
-        }
-      }
-      ordenes: {
-        Row: {
-          id: string
-          cliente_id: string
-          trader_id: string | null
-          estado: string
-          observaciones: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          cliente_id: string
-          trader_id?: string | null
-          estado?: string
-          observaciones?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          cliente_id?: string
-          trader_id?: string | null
-          estado?: string
-          observaciones?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
       activos: {
         Row: {
-          id: string
-          orden_id: string
-          tipo: string
-          descripcion: string | null
-          valor: number | null
+          change: number | null
           created_at: string
+          currency: string | null
+          id: string
+          lastPrice: number | null
+          market: string | null
+          maturityDate: string | null
+          name: string | null
+          ticker: string | null
+          type: string | null
+          volume: number | null
         }
         Insert: {
-          id?: string
-          orden_id: string
-          tipo: string
-          descripcion?: string | null
-          valor?: number | null
+          change?: number | null
           created_at?: string
+          currency?: string | null
+          id?: string
+          lastPrice?: number | null
+          market?: string | null
+          maturityDate?: string | null
+          name?: string | null
+          ticker?: string | null
+          type?: string | null
+          volume?: number | null
         }
         Update: {
-          id?: string
-          orden_id?: string
-          tipo?: string
-          descripcion?: string | null
-          valor?: number | null
+          change?: number | null
           created_at?: string
+          currency?: string | null
+          id?: string
+          lastPrice?: number | null
+          market?: string | null
+          maturityDate?: string | null
+          name?: string | null
+          ticker?: string | null
+          type?: string | null
+          volume?: number | null
         }
+        Relationships: []
+      }
+      clientes: {
+        Row: {
+          accountNumber: string | null
+          address: string | null
+          commercialId: string | null
+          documentNumber: string | null
+          documentType: string | null
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+        }
+        Insert: {
+          accountNumber?: string | null
+          address?: string | null
+          commercialId?: string | null
+          documentNumber?: string | null
+          documentType?: string | null
+          email?: string | null
+          id: string
+          name?: string | null
+          phone?: string | null
+        }
+        Update: {
+          accountNumber?: string | null
+          address?: string | null
+          commercialId?: string | null
+          documentNumber?: string | null
+          documentType?: string | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          asset: string | null
+          assetId: string | null
+          client: string | null
+          clientId: string | null
+          commercial: string | null
+          commercialId: string | null
+          createdAt: string | null
+          id: string
+          notes: string | null
+          price: number | null
+          quantity: number | null
+          status: string | null
+          ticker: string | null
+          total: number | null
+          type: string | null
+          updatedAt: string | null
+        }
+        Insert: {
+          asset?: string | null
+          assetId?: string | null
+          client?: string | null
+          clientId?: string | null
+          commercial?: string | null
+          commercialId?: string | null
+          createdAt?: string | null
+          id: string
+          notes?: string | null
+          price?: number | null
+          quantity?: number | null
+          status?: string | null
+          ticker?: string | null
+          total?: number | null
+          type?: string | null
+          updatedAt?: string | null
+        }
+        Update: {
+          asset?: string | null
+          assetId?: string | null
+          client?: string | null
+          clientId?: string | null
+          commercial?: string | null
+          commercialId?: string | null
+          createdAt?: string | null
+          id?: string
+          notes?: string | null
+          price?: number | null
+          quantity?: number | null
+          status?: string | null
+          ticker?: string | null
+          total?: number | null
+          type?: string | null
+          updatedAt?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {

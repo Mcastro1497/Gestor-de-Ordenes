@@ -8,16 +8,16 @@ import type { Database } from "@/lib/supabase/database.types"
 export async function getAssets() {
   try {
     const supabase = createClient()
-    const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
+    const { data: assets, error } = await supabase.from("activos").select("*")
 
     if (error) {
-      console.error("Error fetching assets:", error)
-      throw new Error(`Failed to fetch assets: ${error.message}`)
+      console.error("Error al obtener activos:", error)
+      throw new Error(`Error al obtener activos: ${error.message}`)
     }
 
     return assets || []
   } catch (error) {
-    console.error("Error in getAssets:", error)
+    console.error("Error en getAssets:", error)
     return []
   }
 }
@@ -33,8 +33,8 @@ export async function getAssetById(id: string) {
   const { data, error } = await supabase.from("activos").select("*").eq("id", id).single()
 
   if (error && error.code !== "PGSQL_ERROR_NO_ROWS") {
-    console.error("Error fetching asset by ID:", error)
-    throw new Error(`Failed to fetch asset: ${error.message}`)
+    console.error("Error al obtener activo por ID:", error)
+    throw new Error(`Error al obtener activo: ${error.message}`)
   }
 
   return data
@@ -51,8 +51,8 @@ export async function createAsset(asset: Omit<Database["public"]["Tables"]["acti
   const { data, error } = await supabase.from("activos").insert(asset).select().single()
 
   if (error) {
-    console.error("Error creating asset:", error)
-    throw new Error(`Failed to create asset: ${error.message}`)
+    console.error("Error al crear activo:", error)
+    throw new Error(`Error al crear activo: ${error.message}`)
   }
 
   return data
@@ -70,8 +70,8 @@ export async function updateAsset(id: string, asset: Partial<Database["public"][
   const { data, error } = await supabase.from("activos").update(asset).eq("id", id).select().single()
 
   if (error) {
-    console.error("Error updating asset:", error)
-    throw new Error(`Failed to update asset: ${error.message}`)
+    console.error("Error al actualizar activo:", error)
+    throw new Error(`Error al actualizar activo: ${error.message}`)
   }
 
   return data
@@ -88,8 +88,8 @@ export async function deleteAsset(id: string) {
   const { error } = await supabase.from("activos").delete().eq("id", id)
 
   if (error) {
-    console.error("Error deleting asset:", error)
-    throw new Error(`Failed to delete asset: ${error.message}`)
+    console.error("Error al eliminar activo:", error)
+    throw new Error(`Error al eliminar activo: ${error.message}`)
   }
 
   return true

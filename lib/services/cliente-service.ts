@@ -4,16 +4,21 @@ import { createServerClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function getClientes() {
-  const supabase = createServerClient()
+  try {
+    const supabase = createServerClient()
 
-  const { data, error } = await supabase.from("clientes").select("*").order("nombre")
+    const { data, error } = await supabase.from("clientes").select("*").order("nombre")
 
-  if (error) {
-    console.error("Error al obtener clientes:", error)
+    if (error) {
+      console.error("Error al obtener clientes:", error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.error("Error en getClientes:", error)
     return []
   }
-
-  return data
 }
 
 export async function getClienteById(id: string) {

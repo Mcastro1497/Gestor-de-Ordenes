@@ -94,11 +94,17 @@ export function OrderCreationForm({ clientes }: { clientes: Cliente[] }) {
               <SelectValue placeholder="Seleccionar cliente" />
             </SelectTrigger>
             <SelectContent>
-              {clientes.map((cliente) => (
-                <SelectItem key={cliente.id} value={cliente.id}>
-                  {cliente.nombre}
+              {Array.isArray(clientes) && clientes.length > 0 ? (
+                clientes.map((cliente) => (
+                  <SelectItem key={cliente.id} value={cliente.id}>
+                    {cliente.nombre || "Cliente sin nombre"}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-clientes" disabled>
+                  No hay clientes disponibles
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
         </div>

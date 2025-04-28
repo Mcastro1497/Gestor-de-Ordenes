@@ -12,18 +12,18 @@ import { crearOrdenIndividual, crearOrdenesMasivas, crearOperacionSwap } from "@
 import type { Client, Asset } from "@/lib/types"
 
 interface OrderCreationFormProps {
-  clients: Client[]
+  clientes: Client[]
   assets: Asset[]
 }
 
-export function OrderCreationForm({ clients, assets }: OrderCreationFormProps) {
+export function OrderCreationForm({ clientes, assets }: OrderCreationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedAccountNumber, setSelectedAccountNumber] = useState<string>("")
   const { toast } = useToast()
   const router = useRouter()
 
   const updateSelectedAccountNumber = (clientId: string) => {
-    const selectedClient = clients.find((client) => client.id === clientId)
+    const selectedClient = clientes.find((client) => client.id === clientId)
     if (selectedClient) {
       setSelectedAccountNumber(selectedClient.accountNumber || selectedClient.idCliente || "")
     } else {
@@ -198,8 +198,8 @@ export function OrderCreationForm({ clients, assets }: OrderCreationFormProps) {
           </TabsList>
           <TabsContent value="individual">
             <IndividualOrderForm
-              clients={clients}
-              assets={assets}
+              clients={clientes || []}
+              assets={assets || []}
               onSubmit={handleIndividualSubmit}
               isSubmitting={isSubmitting}
               onClientChange={updateSelectedAccountNumber}
@@ -207,8 +207,8 @@ export function OrderCreationForm({ clients, assets }: OrderCreationFormProps) {
           </TabsContent>
           <TabsContent value="bulk">
             <BulkOrderForm
-              clients={clients}
-              assets={assets}
+              clients={clientes || []}
+              assets={assets || []}
               onSubmit={handleBulkSubmit}
               isSubmitting={isSubmitting}
               onClientChange={updateSelectedAccountNumber}
@@ -216,8 +216,8 @@ export function OrderCreationForm({ clients, assets }: OrderCreationFormProps) {
           </TabsContent>
           <TabsContent value="swap">
             <SwapOrderForm
-              clients={clients}
-              assets={assets}
+              clients={clientes || []}
+              assets={assets || []}
               onSubmit={handleSwapSubmit}
               isSubmitting={isSubmitting}
               onClientChange={updateSelectedAccountNumber}
