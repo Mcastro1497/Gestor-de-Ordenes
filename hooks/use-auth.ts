@@ -49,6 +49,7 @@ export function useAuth() {
     }
   }, [supabase])
 
+  // Asegúrate de que la función signIn redirija correctamente después de iniciar sesión
   const signIn = useCallback(
     async (email: string, password: string) => {
       setLoading(true)
