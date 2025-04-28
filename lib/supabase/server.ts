@@ -7,25 +7,12 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 
 // Create a Supabase client for server-side usage
 export function createClient() {
-  if (!supabaseUrl || !supabaseKey) {
-    console.error("Faltan variables de entorno de Supabase para el servidor:", {
-      url: supabaseUrl ? "✓" : "✗",
-      key: supabaseKey ? "✓" : "✗",
-    })
-    throw new Error("Faltan variables de entorno de Supabase para el servidor")
-  }
-
-  try {
-    return createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    })
-  } catch (error) {
-    console.error("Error al inicializar el cliente de Supabase para el servidor:", error)
-    throw error
-  }
+  return createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
 }
 
 // Add the missing exports to maintain compatibility with existing code

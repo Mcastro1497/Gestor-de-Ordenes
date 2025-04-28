@@ -2,82 +2,92 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/client"
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
+
+// Función para cargar datos de órdenes desde localStorage
+function loadOrdersFromLocalStorage() {
+  try {
+    const ordersJson = localStorage.getItem("gestor_orders")
+    return ordersJson ? JSON.parse(ordersJson) : []
+  } catch (error) {
+    console.error("Error al cargar órdenes:", error)
+    return []
+  }
+}
+
+interface StatusCount {
+  name: string
+  value: number
+  color: string
+}
 
 export function OrderStatusChart() {
+  const [statusData, setStatusData] = useState<StatusCount[]>([])
   const [loading, setLoading] = useState(true)
-  const [chartData, setChartData] = useState({
-    pendiente: 0,
-    completada: 0,
-    cancelada: 0,
-  })
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchOrderStatusData() {
       try {
-        const supabase = createClient()
+        setLoading(true)
 
-        // Órdenes pendientes
-        const { count: pendingCount, error: pendingError } = await supabase
-          .from("ordenes")
-          .select("*", { count: "exact", head: true })
-          .eq("estado", "pendiente")
+        // Pequeño retraso para simular carga
+        await new Promise((resolve) => setTimeout(resolve, 800))
 
-        // Órdenes completadas
-        const { count: completedCount, error: completedError } = await supabase
-          .from("ordenes")
-          .select("*", { count: "exact", head: true })
-          .eq("estado", "completada")
+        // Cargar órdenes desde localStorage
+        const orders = loadOrdersFromLocalStorage()
 
-        // Órdenes canceladas
-        const { count: cancelledCount, error: cancelledError } = await supabase
-          .from("ordenes")
-          .select("*", { count: "exact", head: true })
-          .eq("estado", "cancelada")
-
-        if (pendingError || completedError || cancelledError) {
-          console.error("Error al obtener datos para el gráfico:", {
-            pendingError,
-            completedError,
-            cancelledError,
+        // Si no hay órdenes, crear datos de ejemplo
+        if (orders.length === 0) {
+          const exampleData = [
+            { name: "Pendiente", value: 2, color: "#EAB308" },
+            { name: "Ejecutada", value: 2, color: "#22C55E" },
+            { name: "Cancelada", value: 1, color: "#EF4444" },
+          ]
+          setStatusData(exampleData)
+        } else {
+          // Contar órdenes por estado
+          const statusCounts: Record<string, number> = {}
+          orders.forEach((order: any) => {
+            const status = order.estado.toLowerCase()
+            statusCounts[status] = (statusCounts[status] || 0) + 1
           })
-          return
-        }
 
-        setChartData({
-          pendiente: pendingCount || 0,
-          completada: completedCount || 0,
-          cancelada: cancelledCount || 0,
-        })
+          // Definir colores para cada estado
+          const statusColors: Record<string, string> = {
+            pendiente: "#EAB308", // yellow-500
+            tomada: "#3B82F6", // blue-500
+            ejecutada: "#22C55E", // green-500
+            "ejecutada parcial": "#10B981", // emerald-500
+            cancelada: "#EF4444", // red-500
+            revisar: "#A855F7", // purple-500
+          }
+
+          // Convertir a formato para el gráfico
+          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
+            name: status.charAt(0).toUpperCase() + status.slice(1),
+            value: count,
+            color: statusColors[status] || "#94A3B8", // slate-400 como color por defecto
+          }))
+
+          setStatusData(chartData)
+        }
       } catch (error) {
-        console.error("Error al obtener datos para el gráfico:", error)
+        console.error("Error al cargar datos de estado de órdenes:", error)
+        // Datos de ejemplo en caso de error
+        const fallbackData = [
+          { name: "Pendiente", value: 2, color: "#EAB308" },
+          { name: "Ejecutada", value: 2, color: "#22C55E" },
+          { name: "Cancelada", value: 1, color: "#EF4444" },
+        ]
+        setStatusData(fallbackData)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
+    fetchOrderStatusData()
   }, [])
-
-  const total = chartData.pendiente + chartData.completada + chartData.cancelada
-  const pendingPercentage = total > 0 ? Math.round((chartData.pendiente / total) * 100) : 0
-  const completedPercentage = total > 0 ? Math.round((chartData.completada / total) * 100) : 0
-  const cancelledPercentage = total > 0 ? Math.round((chartData.cancelada / total) * 100) : 0
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Estado de Órdenes</CardTitle>
-          <CardDescription>Distribución de órdenes por estado</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
-      </Card>
-    )
-  }
 
   return (
     <Card>
@@ -86,49 +96,38 @@ export function OrderStatusChart() {
         <CardDescription>Distribución de órdenes por estado</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
-                <span>Pendientes</span>
-              </div>
-              <span className="font-bold">{chartData.pendiente}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${pendingPercentage}%` }}></div>
-            </div>
-            <div className="text-right text-xs text-muted-foreground">{pendingPercentage}%</div>
+        {loading ? (
+          <div className="w-full h-[300px] flex items-center justify-center">
+            <Skeleton className="h-[250px] w-[250px] rounded-full" />
           </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
-                <span>Completadas</span>
-              </div>
-              <span className="font-bold">{chartData.completada}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${completedPercentage}%` }}></div>
-            </div>
-            <div className="text-right text-xs text-muted-foreground">{completedPercentage}%</div>
+        ) : statusData.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground h-[300px] flex items-center justify-center">
+            No hay datos de órdenes para mostrar
           </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-                <span>Canceladas</span>
-              </div>
-              <span className="font-bold">{chartData.cancelada}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div className="bg-red-500 h-2.5 rounded-full" style={{ width: `${cancelledPercentage}%` }}></div>
-            </div>
-            <div className="text-right text-xs text-muted-foreground">{cancelledPercentage}%</div>
+        ) : (
+          <div className="w-full h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => [`${value} órdenes`, "Cantidad"]} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   )

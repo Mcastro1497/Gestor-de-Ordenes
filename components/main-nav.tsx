@@ -2,8 +2,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { TrendingUp, Plus, BellOff, Bell, LayoutDashboard, Settings, Users, LineChart } from "lucide-react"
-import { useState, useEffect } from "react"
+import { TrendingUp, Plus, BellOff, Bell } from "lucide-react"
+import { useState } from "react"
 import { NotificationBadge } from "./notification-badge"
 import { markNotificationsAsRead } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,6 @@ import { toast } from "@/hooks/use-toast"
 import { NotificationCenter } from "./notification-center"
 import { Badge } from "@/components/ui/badge"
 import type { Order } from "@/lib/types"
-import { useSupabase } from "@/hooks/use-supabase"
 
 interface MainNavProps {
   orders?: Order[] // Ahora las órdenes se pasan como prop
@@ -30,40 +29,6 @@ export function MainNav({ orders = [], onRefreshOrders }: MainNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false)
-  const [isClient, setIsClient] = useState(false)
-  const { supabase } = useSupabase()
-  const [userRole, setUserRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    setIsClient(true)
-
-    // Obtener el rol del usuario actual
-    const fetchUserRole = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-        if (session?.user?.email) {
-          const { data: userData, error } = await supabase
-            .from("usuarios")
-            .select("rol")
-            .eq("email", session.user.email)
-            .single()
-
-          if (error) {
-            console.error("Error al obtener rol del usuario:", error)
-          } else if (userData) {
-            setUserRole(userData.rol)
-            console.log("Rol del usuario:", userData.rol)
-          }
-        }
-      } catch (error) {
-        console.error("Error al verificar el rol del usuario:", error)
-      }
-    }
-
-    fetchUserRole()
-  }, [supabase])
 
   // Calcular el total de notificaciones a partir de las órdenes proporcionadas
   const totalNotifications = orders.reduce((sum, order) => sum + (order.unreadUpdates || 0), 0)
@@ -102,10 +67,6 @@ export function MainNav({ orders = [], onRefreshOrders }: MainNavProps) {
     setNotificationCenterOpen(true)
   }
 
-  if (!isClient) {
-    return null // No renderizar nada en el servidor para evitar errores de hidratación
-  }
-
   return (
     <div className="mr-4 flex">
       <Link href="/" className="mr-6 flex items-center space-x-2">
@@ -116,11 +77,10 @@ export function MainNav({ orders = [], onRefreshOrders }: MainNavProps) {
         <Link
           href="/dashboard"
           className={cn(
-            "transition-colors hover:text-foreground/80 flex items-center",
+            "transition-colors hover:text-foreground/80",
             pathname === "/dashboard" ? "text-foreground" : "text-foreground/60",
           )}
         >
-          <LayoutDashboard className="mr-2 h-4 w-4" />
           Dashboard
         </Link>
 
@@ -164,37 +124,32 @@ export function MainNav({ orders = [], onRefreshOrders }: MainNavProps) {
         <Link
           href="/trading"
           className={cn(
-            "transition-colors hover:text-foreground/80 flex items-center",
+            "transition-colors hover:text-foreground/80",
             pathname?.startsWith("/trading") ? "text-foreground" : "text-foreground/60",
           )}
         >
-          <LineChart className="mr-2 h-4 w-4" />
           Mesa de Trading
         </Link>
 
         <Link
           href="/config"
           className={cn(
-            "transition-colors hover:text-foreground/80 flex items-center",
+            "transition-colors hover:text-foreground/80",
             pathname?.startsWith("/config") ? "text-foreground" : "text-foreground/60",
           )}
         >
-          <Settings className="mr-2 h-4 w-4" />
           Configuración
         </Link>
 
-        {userRole === "admin" && (
-          <Link
-            href="/admin"
-            className={cn(
-              "transition-colors hover:text-foreground/80 flex items-center",
-              pathname?.startsWith("/admin") ? "text-foreground" : "text-foreground/60",
-            )}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Administración
-          </Link>
-        )}
+        <Link
+          href="/admin"
+          className={cn(
+            "transition-colors hover:text-foreground/80",
+            pathname?.startsWith("/admin") ? "text-foreground" : "text-foreground/60",
+          )}
+        >
+          Administración
+        </Link>
       </nav>
 
       {/* Centro de notificaciones */}
