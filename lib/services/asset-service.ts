@@ -6,20 +6,16 @@ import type { Database } from "@/lib/supabase/database.types"
  * @returns Array of assets
  */
 export async function getAssets() {
-  try {
-    const supabase = createClient()
-    const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
+  const supabase = createClient()
 
-    if (error) {
-      console.error("Error fetching assets:", error)
-      throw new Error(`Failed to fetch assets: ${error.message}`)
-    }
+  const { data: assets, error } = await supabase.from("activos").select("*").order("nombre")
 
-    return assets || []
-  } catch (error) {
-    console.error("Error in getAssets:", error)
-    return []
+  if (error) {
+    console.error("Error fetching assets:", error)
+    throw new Error(`Failed to fetch assets: ${error.message}`)
   }
+
+  return assets || []
 }
 
 /**

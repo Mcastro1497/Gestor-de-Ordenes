@@ -4,17 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
-
-// Función para cargar datos de órdenes desde localStorage
-function loadOrdersFromLocalStorage() {
-  try {
-    const ordersJson = localStorage.getItem("gestor_orders")
-    return ordersJson ? JSON.parse(ordersJson) : []
-  } catch (error) {
-    console.error("Error al cargar órdenes:", error)
-    return []
-  }
-}
+import { OrdenService } from "@/lib/services/orden-supabase-service-client"
 
 interface StatusCount {
   name: string
@@ -30,57 +20,35 @@ export function OrderStatusChart() {
     async function fetchOrderStatusData() {
       try {
         setLoading(true)
+        const orders = await OrdenService.obtenerOrdenes()
 
-        // Pequeño retraso para simular carga
-        await new Promise((resolve) => setTimeout(resolve, 800))
+        // Contar órdenes por estado
+        const statusCounts: Record<string, number> = {}
+        orders.forEach((order) => {
+          const status = order.estado.toLowerCase()
+          statusCounts[status] = (statusCounts[status] || 0) + 1
+        })
 
-        // Cargar órdenes desde localStorage
-        const orders = loadOrdersFromLocalStorage()
-
-        // Si no hay órdenes, crear datos de ejemplo
-        if (orders.length === 0) {
-          const exampleData = [
-            { name: "Pendiente", value: 2, color: "#EAB308" },
-            { name: "Ejecutada", value: 2, color: "#22C55E" },
-            { name: "Cancelada", value: 1, color: "#EF4444" },
-          ]
-          setStatusData(exampleData)
-        } else {
-          // Contar órdenes por estado
-          const statusCounts: Record<string, number> = {}
-          orders.forEach((order: any) => {
-            const status = order.estado.toLowerCase()
-            statusCounts[status] = (statusCounts[status] || 0) + 1
-          })
-
-          // Definir colores para cada estado
-          const statusColors: Record<string, string> = {
-            pendiente: "#EAB308", // yellow-500
-            tomada: "#3B82F6", // blue-500
-            ejecutada: "#22C55E", // green-500
-            "ejecutada parcial": "#10B981", // emerald-500
-            cancelada: "#EF4444", // red-500
-            revisar: "#A855F7", // purple-500
-          }
-
-          // Convertir a formato para el gráfico
-          const chartData = Object.entries(statusCounts).map(([status, count]) => ({
-            name: status.charAt(0).toUpperCase() + status.slice(1),
-            value: count,
-            color: statusColors[status] || "#94A3B8", // slate-400 como color por defecto
-          }))
-
-          setStatusData(chartData)
+        // Definir colores para cada estado
+        const statusColors: Record<string, string> = {
+          pendiente: "#EAB308", // yellow-500
+          tomada: "#3B82F6", // blue-500
+          ejecutada: "#22C55E", // green-500
+          "ejecutada parcial": "#10B981", // emerald-500
+          cancelada: "#EF4444", // red-500
+          revisar: "#A855F7", // purple-500
         }
+
+        // Convertir a formato para el gráfico
+        const chartData = Object.entries(statusCounts).map(([status, count]) => ({
+          name: status.charAt(0).toUpperCase() + status.slice(1),
+          value: count,
+          color: statusColors[status] || "#94A3B8", // slate-400 como color por defecto
+        }))
+
+        setStatusData(chartData)
       } catch (error) {
         console.error("Error al cargar datos de estado de órdenes:", error)
-        // Datos de ejemplo en caso de error
-        const fallbackData = [
-          { name: "Pendiente", value: 2, color: "#EAB308" },
-          { name: "Ejecutada", value: 2, color: "#22C55E" },
-          { name: "Cancelada", value: 1, color: "#EF4444" },
-        ]
-        setStatusData(fallbackData)
       } finally {
         setLoading(false)
       }

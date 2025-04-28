@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { Asset } from "@/lib/types"
+import { getAssets } from "@/lib/services/asset-service"
 import { useToast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssetsList } from "@/components/config/assets-list"
@@ -42,13 +43,7 @@ export default function AssetsConfigPage() {
 
       // Si no hay activos en localStorage, intentar cargar desde la API
       if (assets.length === 0) {
-        // Fetch assets from API endpoint instead of direct Supabase call
-        const response = await fetch("/api/assets")
-        if (response.ok) {
-          assets = await response.json()
-        } else {
-          throw new Error("Failed to fetch assets from API")
-        }
+        assets = await getAssets()
       }
 
       setAssets(assets)
@@ -91,7 +86,7 @@ export default function AssetsConfigPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <AssetsList />
+                <AssetsList assets={assets} onRefresh={fetchAssets} />
               )}
             </CardContent>
           </Card>

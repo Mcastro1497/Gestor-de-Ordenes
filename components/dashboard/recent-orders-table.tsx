@@ -8,26 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink } from "lucide-react"
+import { OrdenService, type Orden } from "@/lib/services/orden-supabase-service-client"
+// import type { Orden } from "@/lib/services/orden-supabase-service"
 
-// Función para cargar datos de órdenes desde localStorage
-function loadOrdersFromLocalStorage() {
-  try {
-    const ordersJson = localStorage.getItem("gestor_orders")
-    return ordersJson ? JSON.parse(ordersJson) : []
-  } catch (error) {
-    console.error("Error al cargar órdenes:", error)
-    return []
-  }
-}
-
-// Tipo para las órdenes
-interface Orden {
-  id: string
-  cliente_nombre?: string
-  cliente_cuenta?: string
-  tipo_operacion?: string
-  estado: string
-  created_at: string
+// Modificar el tipo Orden para incluir detalles
+type OrdenConDetalles = Orden & {
   detalles?: Array<{
     id: string
     orden_id: string
@@ -40,202 +25,28 @@ interface Orden {
 }
 
 export function RecentOrdersTable() {
-  const [orders, setOrders] = useState<Orden[]>([])
+  // Actualizar el estado para usar el nuevo tipo
+  const [orders, setOrders] = useState<OrdenConDetalles[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Modificar la función fetchOrders para obtener los detalles
     async function fetchOrders() {
       try {
         setLoading(true)
+        const ordenes = await OrdenService.obtenerOrdenes()
 
-        // Pequeño retraso para simular carga
-        await new Promise((resolve) => setTimeout(resolve, 1200))
+        // Obtener detalles para cada orden
+        const ordenesConDetalles = await Promise.all(
+          ordenes.slice(0, 5).map(async (orden) => {
+            const ordenCompleta = await OrdenService.obtenerOrdenPorId(orden.id)
+            return ordenCompleta || orden
+          }),
+        )
 
-        // Cargar órdenes desde localStorage
-        const orders = loadOrdersFromLocalStorage()
-
-        // Si no hay órdenes, crear algunas de ejemplo
-        if (orders.length === 0) {
-          // Crear fechas válidas para los ejemplos
-          const now = new Date().toISOString()
-          const yesterday = new Date(Date.now() - 86400000).toISOString()
-          const twoDaysAgo = new Date(Date.now() - 172800000).toISOString()
-
-          const exampleOrders = [
-            {
-              id: "1",
-              cliente_nombre: "Juan Pérez",
-              cliente_cuenta: "JP-001",
-              tipo_operacion: "Compra",
-              estado: "pendiente",
-              created_at: now,
-              detalles: [
-                {
-                  id: "d1",
-                  orden_id: "1",
-                  ticker: "AAPL",
-                  cantidad: 10,
-                  precio: 150,
-                  es_orden_mercado: false,
-                  created_at: now,
-                },
-              ],
-            },
-            {
-              id: "2",
-              cliente_nombre: "María López",
-              cliente_cuenta: "ML-002",
-              tipo_operacion: "Venta",
-              estado: "ejecutada",
-              created_at: yesterday,
-              detalles: [
-                {
-                  id: "d2",
-                  orden_id: "2",
-                  ticker: "MSFT",
-                  cantidad: 5,
-                  precio: 300,
-                  es_orden_mercado: true,
-                  created_at: yesterday,
-                },
-              ],
-            },
-            {
-              id: "3",
-              cliente_nombre: "Carlos Rodríguez",
-              cliente_cuenta: "CR-003",
-              tipo_operacion: "Compra",
-              estado: "pendiente",
-              created_at: twoDaysAgo,
-              detalles: [
-                {
-                  id: "d3",
-                  orden_id: "3",
-                  ticker: "GOOGL",
-                  cantidad: 2,
-                  precio: 2500,
-                  es_orden_mercado: false,
-                  created_at: twoDaysAgo,
-                },
-              ],
-            },
-            {
-              id: "4",
-              cliente_nombre: "Ana Martínez",
-              cliente_cuenta: "AM-004",
-              tipo_operacion: "Swap",
-              estado: "cancelada",
-              created_at: yesterday,
-              detalles: [
-                {
-                  id: "d4",
-                  orden_id: "4",
-                  ticker: "TSLA",
-                  cantidad: 3,
-                  precio: 800,
-                  es_orden_mercado: false,
-                  created_at: yesterday,
-                },
-                {
-                  id: "d5",
-                  orden_id: "4",
-                  ticker: "AMZN",
-                  cantidad: 1,
-                  precio: 3200,
-                  es_orden_mercado: false,
-                  created_at: yesterday,
-                },
-              ],
-            },
-            {
-              id: "5",
-              cliente_nombre: "Pedro Gómez",
-              cliente_cuenta: "PG-005",
-              tipo_operacion: "Compra",
-              estado: "ejecutada",
-              created_at: now,
-              detalles: [
-                {
-                  id: "d6",
-                  orden_id: "5",
-                  ticker: "NFLX",
-                  cantidad: 8,
-                  precio: 550,
-                  es_orden_mercado: true,
-                  created_at: now,
-                },
-              ],
-            },
-          ]
-          localStorage.setItem("gestor_orders", JSON.stringify(exampleOrders))
-          setOrders(exampleOrders)
-        } else {
-          setOrders(orders.slice(0, 5))
-        }
+        setOrders(ordenesConDetalles.filter(Boolean))
       } catch (error) {
         console.error("Error al cargar órdenes recientes:", error)
-        // Crear órdenes de ejemplo en caso de error
-        const now = new Date().toISOString()
-        const fallbackOrders = [
-          {
-            id: "1",
-            cliente_nombre: "Juan Pérez",
-            cliente_cuenta: "JP-001",
-            tipo_operacion: "Compra",
-            estado: "pendiente",
-            created_at: now,
-            detalles: [
-              {
-                id: "d1",
-                orden_id: "1",
-                ticker: "AAPL",
-                cantidad: 10,
-                precio: 150,
-                es_orden_mercado: false,
-                created_at: now,
-              },
-            ],
-          },
-          {
-            id: "2",
-            cliente_nombre: "María López",
-            cliente_cuenta: "ML-002",
-            tipo_operacion: "Venta",
-            estado: "ejecutada",
-            created_at: now,
-            detalles: [
-              {
-                id: "d2",
-                orden_id: "2",
-                ticker: "MSFT",
-                cantidad: 5,
-                precio: 300,
-                es_orden_mercado: true,
-                created_at: now,
-              },
-            ],
-          },
-          {
-            id: "3",
-            cliente_nombre: "Carlos Rodríguez",
-            cliente_cuenta: "CR-003",
-            tipo_operacion: "Compra",
-            estado: "pendiente",
-            created_at: now,
-            detalles: [
-              {
-                id: "d3",
-                orden_id: "3",
-                ticker: "GOOGL",
-                cantidad: 2,
-                precio: 2500,
-                es_orden_mercado: false,
-                created_at: now,
-              },
-            ],
-          },
-        ]
-        setOrders(fallbackOrders)
       } finally {
         setLoading(false)
       }
@@ -288,32 +99,16 @@ export function RecentOrdersTable() {
     }
   }
 
-  // Función para formatear la fecha con manejo de errores
+  // Función para formatear la fecha
   function formatDate(dateString: string) {
-    try {
-      // Verificar si la fecha es válida
-      if (!dateString) {
-        return "Fecha no disponible"
-      }
-
-      const date = new Date(dateString)
-
-      // Verificar si la fecha es válida después de la conversión
-      if (isNaN(date.getTime())) {
-        return "Fecha inválida"
-      }
-
-      return new Intl.DateTimeFormat("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date)
-    } catch (error) {
-      console.error("Error al formatear fecha:", error)
-      return "Error de formato"
-    }
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
   }
 
   return (
@@ -358,8 +153,8 @@ export function RecentOrdersTable() {
                       ? order.detalles.map((d) => d.ticker).join(", ")
                       : "N/A"}
                   </TableCell>
-                  <TableCell>{order.tipo_operacion || "N/A"}</TableCell>
-                  <TableCell>{getStatusBadge(order.estado || "pendiente")}</TableCell>
+                  <TableCell>{order.tipo_operacion}</TableCell>
+                  <TableCell>{getStatusBadge(order.estado)}</TableCell>
                   <TableCell>{formatDate(order.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
