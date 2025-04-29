@@ -1,25 +1,33 @@
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+import { DashboardShell } from "@/components/dashboard-shell"
 import { DashboardStats } from "@/components/dashboard/dashboard-stats"
+import { RecentOrdersTable } from "@/components/dashboard/recent-orders-table"
 import { OrderStatusChart } from "@/components/dashboard/order-status-chart"
 import { OrderTypeChart } from "@/components/dashboard/order-type-chart"
-import { RecentOrdersTable } from "@/components/dashboard/recent-orders-table"
-import { DebugUserRole } from "@/components/debug-user-role"
 
+// Make sure this is a Server Component (no "use client" directive)
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-6 space-y-8">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+    <DashboardShell>
+      <div className="grid gap-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        </div>
 
-      <DashboardStats />
+        {/* Estadísticas generales */}
+        <DashboardStats />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <OrderStatusChart />
-        <OrderTypeChart />
+        {/* Gráficos y tablas */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+          <OrderStatusChart />
+          <OrderTypeChart />
+        </div>
+
+        {/* Órdenes recientes */}
+        <RecentOrdersTable />
       </div>
-
-      <RecentOrdersTable />
-
-      {/* Componente de depuración para verificar el rol */}
-      <DebugUserRole />
-    </div>
+    </DashboardShell>
   )
 }

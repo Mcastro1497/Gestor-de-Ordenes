@@ -1,22 +1,42 @@
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardShell } from "@/components/dashboard-shell"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { UserManagementTable } from "@/components/admin/user-management-table"
+import { RolePermissionsInfo } from "@/components/admin/role-permissions-info"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function AdminPage() {
   return (
     <DashboardShell>
-      <DashboardHeader heading="Administración" text="Gestiona usuarios y configuraciones del sistema." />
+      <DashboardHeader
+        heading="Administración de Usuarios"
+        text="Gestiona los usuarios y sus permisos en el sistema."
+      />
 
-      <div className="grid gap-4">
-        <div className="border p-4 rounded-md">
-          <h2 className="text-xl font-bold mb-4">Gestión de Usuarios</h2>
-          <p>Aquí se mostrarán las opciones para gestionar usuarios.</p>
-        </div>
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsTrigger value="users">Usuarios</TabsTrigger>
+          <TabsTrigger value="roles">Roles y Permisos</TabsTrigger>
+        </TabsList>
 
-        <div className="border p-4 rounded-md">
-          <h2 className="text-xl font-bold mb-4">Configuración del Sistema</h2>
-          <p>Aquí se mostrarán las opciones de configuración del sistema.</p>
-        </div>
-      </div>
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios del Sistema</CardTitle>
+              <CardDescription>
+                Administra los usuarios, sus roles y permisos. Puedes crear, editar y desactivar usuarios.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <UserManagementTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <RolePermissionsInfo />
+        </TabsContent>
+      </Tabs>
     </DashboardShell>
   )
 }

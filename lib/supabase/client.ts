@@ -19,30 +19,6 @@ export function createClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      storage: {
-        getItem: (key) => {
-          if (typeof window === "undefined") {
-            return null
-          }
-          const value = localStorage.getItem(key)
-          console.log(`[Storage] Obteniendo ${key}:`, value ? "Existe" : "No existe")
-          return value
-        },
-        setItem: (key, value) => {
-          if (typeof window === "undefined") {
-            return
-          }
-          console.log(`[Storage] Guardando ${key}`)
-          localStorage.setItem(key, value)
-        },
-        removeItem: (key) => {
-          if (typeof window === "undefined") {
-            return
-          }
-          console.log(`[Storage] Eliminando ${key}`)
-          localStorage.removeItem(key)
-        },
-      },
     },
   })
 

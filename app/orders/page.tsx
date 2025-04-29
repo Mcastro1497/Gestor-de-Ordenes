@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { getOrders } from "@/lib/data"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { Button } from "@/components/ui/button"
@@ -7,12 +8,7 @@ import { Plus } from "lucide-react"
 export const dynamic = "force-dynamic" // Forzar renderizado dinámico
 
 export default async function OrdersPage() {
-  // Simulamos datos de órdenes para evitar errores
-  const orders = [
-    { id: 1, client: "Cliente 1", ticker: "AAPL", status: "Pendiente" },
-    { id: 2, client: "Cliente 2", ticker: "MSFT", status: "Ejecutada" },
-    { id: 3, client: "Cliente 3", ticker: "GOOGL", status: "Cancelada" },
-  ]
+  const orders = await getOrders()
 
   return (
     <DashboardShell>
@@ -41,6 +37,11 @@ export default async function OrdersPage() {
                   <Link href={`/orders/${order.id}`}>
                     <Button variant="outline" size="sm">
                       Ver detalles
+                    </Button>
+                  </Link>
+                  <Link href={`/orders/${order.id}/test`}>
+                    <Button variant="ghost" size="sm">
+                      Página de prueba
                     </Button>
                   </Link>
                 </div>

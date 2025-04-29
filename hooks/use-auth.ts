@@ -1,151 +1,77 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useCallback } from "react"
+import { useSupabase } from "./use-supabase"
 import type { User, AuthError, Provider } from "@supabase/supabase-js"
 import { toast } from "sonner"
 
 export function useAuth() {
+  const { supabase } = useSupabase()
   const [user, setUser] = useState<User | null>(null)
-  const [userRole, setUserRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<AuthError | null>(null)
-  const router = useRouter()
 
-  // Función para obtener el rol del usuario
-  const fetchUserRole = useCallback(async (userId: string, userEmail: string) => {
-    try {
-      console.log("Obteniendo rol para el usuario:", userId, userEmail)
-      const supabase = createClient()
-
-      // Primero intentamos buscar por ID
-      let { data, error } = await supabase.from("usuarios").select("rol").eq("id", userId).single()
-
-      // Si no encontramos por ID, intentamos por email
-      if (error || !data) {
-        console.log("No se encontró usuario por ID, intentando por email")
-        const result = await supabase.from("usuarios").select("rol").eq("email", userEmail).single()
-
-        data = result.data
-        error = result.error
-      }
-
-      if (error) {
-        console.error("Error al obtener rol:", error)
-        return "admin" // Por defecto, asumimos admin si hay error
-      }
-
-      console.log("Rol obtenido:", data?.rol)
-      return data?.rol || "admin"
-    } catch (err) {
-      console.error("Error en fetchUserRole:", err)
-      return "admin" // Por defecto, asumimos admin si hay error
-    }
-  }, [])
-
-  // Efecto para obtener y mantener la sesión del usuario
+  // Fetch the user on mount
   useEffect(() => {
-    const getUser = async () => {
+    const fetchUser = async () => {
       try {
         setLoading(true)
-        const supabase = createClient()
-
-        // Obtener la sesión actual
         const {
-          data: { session },
-        } = await supabase.auth.getSession()
+          data: { user },
+          error,
+        } = await supabase.auth.getUser()
 
-        if (session?.user) {
-          console.log("Sesión encontrada:", session.user.email)
-          setUser(session.user)
-
-          // Obtener el rol del usuario
-          const role = await fetchUserRole(session.user.id, session.user.email || "")
-          setUserRole(role)
-          console.log("Rol establecido:", role)
+        if (error) {
+          setError(error)
         } else {
-          console.log("No hay sesión activa")
-          setUser(null)
-          setUserRole(null)
+          setUser(user)
         }
       } catch (err) {
-        console.error("Error al obtener usuario:", err)
+        console.error("Error fetching user:", err)
         setError(err as AuthError)
       } finally {
         setLoading(false)
       }
     }
 
-    // Obtener el usuario al montar el componente
-    getUser()
+    fetchUser()
 
-    // Suscribirse a cambios en la autenticación
-    const supabase = createClient()
+    // Set up auth state change listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Evento de autenticación:", event)
-
-      if (session?.user) {
-        console.log("Usuario autenticado:", session.user.email)
-        setUser(session.user)
-
-        // Obtener el rol del usuario
-        const role = await fetchUserRole(session.user.id, session.user.email || "")
-        setUserRole(role)
-        console.log("Rol establecido:", role)
-      } else {
-        console.log("Usuario no autenticado")
-        setUser(null)
-        setUserRole(null)
-      }
-
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Limpiar la suscripción al desmontar
     return () => {
       subscription.unsubscribe()
     }
-  }, [fetchUserRole])
+  }, [supabase])
 
-  // Función para iniciar sesión
+  // Asegúrate de que la función signIn redirija correctamente después de iniciar sesión
   const signIn = useCallback(
     async (email: string, password: string) => {
       setLoading(true)
       setError(null)
 
       try {
-        console.log("Iniciando sesión con:", email)
-        const supabase = createClient()
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
 
         if (error) {
-          console.error("Error al iniciar sesión:", error.message)
           setError(error)
           toast.error("Error al iniciar sesión: " + error.message)
           return { user: null, error }
         }
 
-        console.log("Sesión iniciada correctamente")
         setUser(data.user)
-
-        // Obtener el rol del usuario
-        if (data.user) {
-          const role = await fetchUserRole(data.user.id, data.user.email || "")
-          setUserRole(role)
-          console.log("Rol establecido:", role)
-        }
-
         toast.success("Sesión iniciada correctamente")
-        router.push("/dashboard")
         return { user: data.user, error: null }
       } catch (err) {
-        console.error("Error en signIn:", err)
+        console.error("Error signing in:", err)
         setError(err as AuthError)
         toast.error("Error al iniciar sesión")
         return { user: null, error: err as AuthError }
@@ -153,41 +79,8 @@ export function useAuth() {
         setLoading(false)
       }
     },
-    [fetchUserRole, router],
+    [supabase],
   )
-
-  // Función para cerrar sesión
-  const signOut = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      console.log("Cerrando sesión")
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-
-      if (error) {
-        console.error("Error al cerrar sesión:", error.message)
-        setError(error)
-        toast.error("Error al cerrar sesión: " + error.message)
-        return { error }
-      }
-
-      console.log("Sesión cerrada correctamente")
-      setUser(null)
-      setUserRole(null)
-      toast.success("Sesión cerrada correctamente")
-      router.push("/login")
-      return { error: null }
-    } catch (err) {
-      console.error("Error en signOut:", err)
-      setError(err as AuthError)
-      toast.error("Error al cerrar sesión")
-      return { error: err as AuthError }
-    } finally {
-      setLoading(false)
-    }
-  }, [router])
 
   const signInWithProvider = useCallback(
     async (provider: Provider) => {
@@ -195,7 +88,6 @@ export function useAuth() {
       setError(null)
 
       try {
-        const supabase = createClient()
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
@@ -219,100 +111,131 @@ export function useAuth() {
         setLoading(false)
       }
     },
-    [fetchUserRole],
+    [supabase],
   )
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    setLoading(true)
-    setError(null)
+  const signUp = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true)
+      setError(null)
 
-    try {
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        })
 
-      if (error) {
-        setError(error)
-        toast.error("Error al registrarse: " + error.message)
-        return { user: null, error }
+        if (error) {
+          setError(error)
+          toast.error("Error al registrarse: " + error.message)
+          return { user: null, error }
+        }
+
+        toast.success("Registro exitoso. Por favor, verifica tu correo electrónico para confirmar tu cuenta.")
+        return { user: data.user, error: null }
+      } catch (err) {
+        console.error("Error signing up:", err)
+        setError(err as AuthError)
+        toast.error("Error al registrarse")
+        return { user: null, error: err as AuthError }
+      } finally {
+        setLoading(false)
       }
+    },
+    [supabase],
+  )
 
-      toast.success("Registro exitoso. Por favor, verifica tu correo electrónico para confirmar tu cuenta.")
-      return { user: data.user, error: null }
-    } catch (err) {
-      console.error("Error signing up:", err)
-      setError(err as AuthError)
-      toast.error("Error al registrarse")
-      return { user: null, error: err as AuthError }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const resetPassword = useCallback(async (email: string) => {
+  const signOut = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      })
+      const { error } = await supabase.auth.signOut()
 
       if (error) {
         setError(error)
-        toast.error("Error al enviar el correo de recuperación: " + error.message)
+        toast.error("Error al cerrar sesión: " + error.message)
         return { error }
       }
 
-      toast.success("Se ha enviado un correo de recuperación a tu dirección de email")
+      setUser(null)
+      toast.success("Sesión cerrada correctamente")
       return { error: null }
     } catch (err) {
-      console.error("Error resetting password:", err)
+      console.error("Error signing out:", err)
       setError(err as AuthError)
-      toast.error("Error al solicitar recuperación de contraseña")
+      toast.error("Error al cerrar sesión")
       return { error: err as AuthError }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [supabase])
 
-  const updatePassword = useCallback(async (password: string) => {
-    setLoading(true)
-    setError(null)
+  const resetPassword = useCallback(
+    async (email: string) => {
+      setLoading(true)
+      setError(null)
 
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.updateUser({
-        password,
-      })
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        })
 
-      if (error) {
-        setError(error)
-        toast.error("Error al actualizar la contraseña: " + error.message)
-        return { error }
+        if (error) {
+          setError(error)
+          toast.error("Error al enviar el correo de recuperación: " + error.message)
+          return { error }
+        }
+
+        toast.success("Se ha enviado un correo de recuperación a tu dirección de email")
+        return { error: null }
+      } catch (err) {
+        console.error("Error resetting password:", err)
+        setError(err as AuthError)
+        toast.error("Error al solicitar recuperación de contraseña")
+        return { error: err as AuthError }
+      } finally {
+        setLoading(false)
       }
+    },
+    [supabase],
+  )
 
-      toast.success("Contraseña actualizada correctamente")
-      return { error: null }
-    } catch (err) {
-      console.error("Error updating password:", err)
-      setError(err as AuthError)
-      toast.error("Error al actualizar la contraseña")
-      return { error: err as AuthError }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const updatePassword = useCallback(
+    async (password: string) => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password,
+        })
+
+        if (error) {
+          setError(error)
+          toast.error("Error al actualizar la contraseña: " + error.message)
+          return { error }
+        }
+
+        toast.success("Contraseña actualizada correctamente")
+        return { error: null }
+      } catch (err) {
+        console.error("Error updating password:", err)
+        setError(err as AuthError)
+        toast.error("Error al actualizar la contraseña")
+        return { error: err as AuthError }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [supabase],
+  )
 
   return {
     user,
-    userRole,
     loading,
     error,
     signIn,
