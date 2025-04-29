@@ -1,6 +1,5 @@
 import type { User, Session } from "../db/schema"
-import { getUserByEmail, getUserById } from "../services/user-service"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/client"
 
 // Clave para la cookie de sesión
 const SESSION_COOKIE_NAME = "gestor_session"
@@ -37,88 +36,102 @@ export async function login(
   email: string,
   password: string,
 ): Promise<{ success: boolean; message: string; user?: User }> {
-  const user = getUserByEmail(email)
+  try {
+    // Usar Supabase para autenticar
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-  if (!user) {
-    return { success: false, message: "Usuario no encontrado" }
+    if (error) {
+      return { success: false, message: error.message }
+    }
+
+    if (!data.user) {
+      return { success: false, message: "No se pudo obtener la información del usuario" }
+    }
+
+    // Obtener el rol del usuario desde la tabla usuarios
+    const { data: userData, error: userError } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("id", data.user.id)
+      .single()
+
+    if (userError || !userData) {
+      // Si no existe en la tabla usuarios, cerrar sesión
+      await supabase.auth.signOut()
+      return { success: false, message: "Usuario no encontrado en el sistema" }
+    }
+
+    // Verificar si el usuario está activo
+    if (!userData.activo) {
+      await supabase.auth.signOut()
+      return { success: false, message: "Usuario inactivo" }
+    }
+
+    // Crear un objeto de usuario con los datos de Supabase
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email || "",
+      name: userData.nombre || data.user.email?.split("@")[0] || "",
+      role: userData.rol,
+      isActive: userData.activo,
+      createdAt: new Date(data.user.created_at),
+      updatedAt: new Date(),
+    }
+
+    return { success: true, message: "Inicio de sesión exitoso", user }
+  } catch (error) {
+    console.error("Error en login:", error)
+    return { success: false, message: "Error al iniciar sesión" }
   }
-
-  if (user.password !== password) {
-    // En una implementación real, se compararía con hash
-    return { success: false, message: "Contraseña incorrecta" }
-  }
-
-  if (!user.isActive) {
-    return { success: false, message: "Usuario inactivo" }
-  }
-
-  // Crear una sesión
-  const token = generateToken()
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 7) // Expira en 7 días
-
-  const session: Session = {
-    id: `session-${Date.now()}`,
-    userId: user.id,
-    token,
-    expiresAt,
-    createdAt: new Date(),
-  }
-
-  // Guardar la sesión
-  const sessions = getAllSessions()
-  sessions.push(session)
-  saveSessions(sessions)
-
-  // Establecer cookie de sesión
-  cookies().set({
-    name: SESSION_COOKIE_NAME,
-    value: token,
-    expires: expiresAt,
-    path: "/",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  })
-
-  return { success: true, message: "Inicio de sesión exitoso", user }
 }
 
 // Función para cerrar sesión
 export async function logout(): Promise<void> {
-  const token = cookies().get(SESSION_COOKIE_NAME)?.value
-
-  if (token) {
-    // Eliminar la sesión
-    const sessions = getAllSessions()
-    const updatedSessions = sessions.filter((s) => s.token !== token)
-    saveSessions(updatedSessions)
-
-    // Eliminar la cookie
-    cookies().delete(SESSION_COOKIE_NAME)
+  try {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+  } catch (error) {
+    console.error("Error al cerrar sesión:", error)
   }
 }
 
 // Función para obtener el usuario actual
 export async function getCurrentUser(): Promise<User | null> {
-  const token = cookies().get(SESSION_COOKIE_NAME)?.value
+  try {
+    const supabase = createClient()
+    const { data } = await supabase.auth.getUser()
 
-  if (!token) {
+    if (!data.user) {
+      return null
+    }
+
+    // Obtener datos adicionales del usuario desde la tabla usuarios
+    const { data: userData, error } = await supabase.from("usuarios").select("*").eq("id", data.user.id).single()
+
+    if (error || !userData) {
+      return null
+    }
+
+    // Crear un objeto de usuario con los datos de Supabase
+    const user: User = {
+      id: data.user.id,
+      email: data.user.email || "",
+      name: userData.nombre || data.user.email?.split("@")[0] || "",
+      role: userData.rol,
+      isActive: userData.activo,
+      createdAt: new Date(data.user.created_at),
+      updatedAt: new Date(),
+    }
+
+    return user
+  } catch (error) {
+    console.error("Error al obtener usuario actual:", error)
     return null
   }
-
-  // Buscar la sesión
-  const sessions = getAllSessions()
-  const session = sessions.find((s) => s.token === token && new Date(s.expiresAt) > new Date())
-
-  if (!session) {
-    return null
-  }
-
-  // Obtener el usuario
-  const user = getUserById(session.userId)
-
-  return user || null
 }
 
 // Función para generar un token aleatorio

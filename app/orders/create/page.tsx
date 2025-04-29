@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { getClients, getAssets } from "@/lib/data"
 import type { Client, Asset } from "@/lib/types"
+import { RouteGuard } from "@/components/auth/route-guard"
+import { Permission } from "@/lib/db/schema"
 
 export default function CreateOrderPage() {
   const [clients, setClients] = useState<Client[]>([])
@@ -36,18 +38,20 @@ export default function CreateOrderPage() {
   }, [])
 
   return (
-    <DashboardShell>
-      <DashboardHeader heading="Crear Orden" text="Crea una nueva orden para un cliente." />
-      <div className="grid gap-8">
-        {loading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} />
-        ) : (
-          <OrderCreationForm clients={clients} assets={assets} />
-        )}
-      </div>
-    </DashboardShell>
+    <RouteGuard requiredPermissions={[Permission.CREATE_ORDER]}>
+      <DashboardShell>
+        <DashboardHeader heading="Crear Orden" text="Crea una nueva orden para un cliente." />
+        <div className="grid gap-8">
+          {loading ? (
+            <LoadingState />
+          ) : error ? (
+            <ErrorState message={error} />
+          ) : (
+            <OrderCreationForm clients={clients} assets={assets} />
+          )}
+        </div>
+      </DashboardShell>
+    </RouteGuard>
   )
 }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -8,19 +8,30 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { UserRole } from "@/lib/db/schema"
+import { Switch } from "@/components/ui/switch"
 import { toast } from "@/hooks/use-toast"
-import { getSupabaseUserById } from "@/lib/services/user-supabase-service"
-import { createClient } from "@/lib/supabase/client"
+import { UserRole } from "@/lib/db/schema"
+import { createUser, updateUser, getUserById } from "@/lib/services/user-service"
 
 // Esquema de validación para el formulario
 const userFormSchema = z.object({
-  email: z.string().email({ message: "Debe ser un correo electrónico válido" }),
-  nombre: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres" }),
-  rol: z.nativeEnum(UserRole, { message: "Debe seleccionar un rol válido" }),
-  activo: z.boolean().default(true),
-  password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }).optional(),
+  name: z.string().min(2, {
+    message: "El nombre debe tener al menos 2 caracteres.",
+  }),
+  email: z.string().email({
+    message: "Debe ingresar un email válido.",
+  }),
+  password: z
+    .string()
+    .min(6, {
+      message: "La contraseña debe tener al menos 6 caracteres.",
+    })
+    .optional()
+    .or(z.literal("")),
+  role: z.nativeEnum(UserRole, {
+    required_error: "Debe seleccionar un rol.",
+  }),
+  isActive: z.boolean().default(true),
 })
 
 type UserFormValues = z.infer<typeof userFormSchema>
@@ -32,109 +43,64 @@ interface UserFormProps {
 }
 
 export function UserForm({ userId, onSuccess, onCancel }: UserFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const isEditing = !!userId
 
-  // Inicializar el formulario
+  // Configurar el formulario
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
+      name: "",
       email: "",
-      nombre: "",
-      rol: undefined,
-      activo: true,
       password: "",
+      role: UserRole.COMERCIAL,
+      isActive: true,
     },
   })
 
-  // Cargar datos del usuario si se está editando
-  useState(() => {
-    if (userId) {
-      setIsLoading(true)
-      getSupabaseUserById(userId)
-        .then((user) => {
-          if (user) {
-            form.reset({
-              email: user.email,
-              nombre: user.nombre || "",
-              rol: user.rol as UserRole,
-              activo: user.activo || false,
-              password: "", // No cargar la contraseña por seguridad
-            })
-          }
+  useEffect(() => {
+    if (isEditing && userId) {
+      const user = getUserById(userId)
+      if (user) {
+        form.reset({
+          name: user.name,
+          email: user.email,
+          password: "", // No mostrar la contraseña actual
+          role: user.role,
+          isActive: user.isActive,
         })
-        .catch((error) => {
-          console.error("Error al cargar usuario:", error)
-          toast({
-            title: "Error",
-            description: "No se pudo cargar la información del usuario.",
-            variant: "destructive",
-          })
-        })
-        .finally(() => {
-          setIsLoading(false)
-        })
+      }
     }
-  }, [userId, form])
+  }, [isEditing, userId, form])
 
-  // Función para manejar el envío del formulario
-  const onSubmit = async (data: UserFormValues) => {
-    setIsLoading(true)
+  async function onSubmit(values: UserFormValues) {
     try {
-      const supabase = createClient()
+      setIsSubmitting(true)
 
-      if (userId) {
-        // Actualizar usuario existente
-        const updateData: any = {
-          nombre: data.nombre,
-          rol: data.rol,
-          activo: data.activo,
+      if (isEditing && userId) {
+        // Si estamos editando, omitir la contraseña si está vacía
+        const updateData = { ...values }
+        if (!updateData.password) {
+          delete updateData.password
         }
 
-        // Solo incluir contraseña si se ha proporcionado una nueva
-        if (data.password) {
-          // En una implementación real, esto debería hacerse a través de una API segura
-          // que maneje el hash de la contraseña en el servidor
-          updateData.password = data.password
-        }
-
-        const { error } = await supabase.from("usuarios").update(updateData).eq("id", userId)
-
-        if (error) throw error
-
+        await updateUser(userId, updateData)
         toast({
           title: "Usuario actualizado",
           description: "El usuario ha sido actualizado exitosamente.",
         })
       } else {
-        // Crear nuevo usuario
-        // En una implementación real, esto debería hacerse a través de una API segura
-        // que maneje el registro de usuarios y el hash de contraseñas
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password || "password123", // Contraseña temporal
-          options: {
-            data: {
-              nombre: data.nombre,
-              rol: data.rol,
-            },
-          },
-        })
-
-        if (authError) throw authError
-
-        // Crear registro en la tabla de usuarios
-        if (authData.user) {
-          const { error } = await supabase.from("usuarios").insert({
-            id: authData.user.id,
-            email: data.email,
-            nombre: data.nombre,
-            rol: data.rol,
-            activo: data.activo,
+        // Si estamos creando, asegurarnos de que haya una contraseña
+        if (!values.password) {
+          form.setError("password", {
+            type: "manual",
+            message: "La contraseña es requerida para nuevos usuarios.",
           })
-
-          if (error) throw error
+          setIsSubmitting(false)
+          return
         }
 
+        await createUser(values as any)
         toast({
           title: "Usuario creado",
           description: "El usuario ha sido creado exitosamente.",
@@ -143,34 +109,44 @@ export function UserForm({ userId, onSuccess, onCancel }: UserFormProps) {
 
       onSuccess()
     } catch (error) {
-      console.error("Error al guardar usuario:", error)
       toast({
         title: "Error",
-        description: "No se pudo guardar el usuario. Por favor, intente de nuevo.",
+        description: error instanceof Error ? error.message : "Hubo un error al procesar el usuario.",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nombre</FormLabel>
+              <FormControl>
+                <Input placeholder="Nombre completo" {...field} />
+              </FormControl>
+              <FormDescription>Nombre completo del usuario.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Correo Electrónico</FormLabel>
+              <FormLabel>Correo electrónico</FormLabel>
               <FormControl>
-                <Input
-                  placeholder="correo@ejemplo.com"
-                  {...field}
-                  disabled={isLoading || !!userId} // Deshabilitar si se está editando
-                />
+                <Input type="email" placeholder="correo@ejemplo.com" {...field} />
               </FormControl>
-              <FormDescription>El correo electrónico se utilizará para iniciar sesión.</FormDescription>
+              <FormDescription>Correo electrónico para iniciar sesión.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -178,13 +154,20 @@ export function UserForm({ userId, onSuccess, onCancel }: UserFormProps) {
 
         <FormField
           control={form.control}
-          name="nombre"
+          name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nombre</FormLabel>
+              <FormLabel>{isEditing ? "Nueva contraseña (opcional)" : "Contraseña"}</FormLabel>
               <FormControl>
-                <Input placeholder="Nombre del usuario" {...field} disabled={isLoading} />
+                <Input
+                  type="password"
+                  placeholder={isEditing ? "Dejar en blanco para mantener la actual" : "Contraseña"}
+                  {...field}
+                />
               </FormControl>
+              <FormDescription>
+                {isEditing ? "Dejar en blanco para mantener la contraseña actual." : "Contraseña para iniciar sesión."}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -192,21 +175,21 @@ export function UserForm({ userId, onSuccess, onCancel }: UserFormProps) {
 
         <FormField
           control={form.control}
-          name="rol"
+          name="role"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Rol</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione un rol" />
+                    <SelectValue placeholder="Seleccionar rol" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value={UserRole.ADMIN}>Administrador</SelectItem>
                   <SelectItem value={UserRole.COMERCIAL}>Comercial</SelectItem>
                   <SelectItem value={UserRole.OPERADOR}>Operador</SelectItem>
                   <SelectItem value={UserRole.CONTROLADOR}>Controlador</SelectItem>
+                  <SelectItem value={UserRole.ADMIN}>Administrador</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>El rol determina los permisos del usuario en el sistema.</FormDescription>
@@ -217,50 +200,26 @@ export function UserForm({ userId, onSuccess, onCancel }: UserFormProps) {
 
         <FormField
           control={form.control}
-          name="activo"
+          name="isActive"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isLoading} />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>Usuario activo</FormLabel>
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Usuario activo</FormLabel>
                 <FormDescription>Los usuarios inactivos no pueden iniciar sesión en el sistema.</FormDescription>
               </div>
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{userId ? "Nueva Contraseña" : "Contraseña"}</FormLabel>
               <FormControl>
-                <Input
-                  type="password"
-                  placeholder={userId ? "Dejar en blanco para mantener la actual" : "Contraseña"}
-                  {...field}
-                  disabled={isLoading}
-                />
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
-              <FormDescription>
-                {userId
-                  ? "Deje este campo en blanco si no desea cambiar la contraseña."
-                  : "La contraseña debe tener al menos 6 caracteres."}
-              </FormDescription>
-              <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+        <div className="flex justify-end space-x-4">
+          <Button variant="outline" onClick={onCancel} type="button">
             Cancelar
           </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Guardando..." : userId ? "Actualizar" : "Crear"}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Guardando..." : isEditing ? "Actualizar usuario" : "Crear usuario"}
           </Button>
         </div>
       </form>

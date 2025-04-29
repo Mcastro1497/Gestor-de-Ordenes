@@ -1,49 +1,58 @@
 // Esquema de la base de datos para usuarios, roles y permisos
 
-// Enumeración de roles disponibles en el sistema
+// Añadir estas definiciones de roles y permisos al archivo
+
+// Roles de usuario
 export enum UserRole {
-  COMERCIAL = "comercial",
-  OPERADOR = "operador",
-  CONTROLADOR = "controlador",
   ADMIN = "admin",
+  COMERCIAL = "comercial",
+  OPERADOR = "trader",
 }
 
-// Enumeración de permisos disponibles en el sistema
+// Permisos disponibles en el sistema
 export enum Permission {
+  // Dashboard
   VIEW_DASHBOARD = "view_dashboard",
+
+  // Órdenes
   CREATE_ORDER = "create_order",
   EDIT_ORDER = "edit_order",
-  DELETE_ORDER = "delete_order",
-  EXECUTE_ORDER = "execute_order",
+  VIEW_ORDER = "view_order",
+
+  // Trading
   VIEW_TRADING = "view_trading",
+  EXECUTE_ORDER = "execute_order",
+
+  // Configuración
   VIEW_CONFIG = "view_config",
-  IMPORT_ASSETS = "import_assets",
   IMPORT_CLIENTS = "import_clients",
+  IMPORT_ASSETS = "import_assets",
+
+  // Administración
   MANAGE_USERS = "manage_users",
+  ASSIGN_ROLES = "assign_roles",
 }
 
-// Interfaz para el modelo de Usuario
+// Tipo para la tabla de roles
+export interface Role {
+  id: string
+  name: UserRole
+  description: string
+  permissions: Permission[]
+}
+
+// Actualizar la interfaz User para incluir el rol
 export interface User {
   id: string
   email: string
   name: string
-  password: string // En una implementación real, esto sería un hash
+  password?: string
   role: UserRole
   isActive: boolean
   createdAt: Date
   updatedAt: Date
-  lastLogin?: Date
 }
 
-// Interfaz para el modelo de Rol
-export interface Role {
-  id: string
-  name: UserRole
-  permissions: Permission[]
-  description: string
-}
-
-// Interfaz para el modelo de Sesión
 export interface Session {
   id: string
   userId: string

@@ -11,6 +11,8 @@ import { Send, ExternalLink } from "lucide-react"
 import { SendOrdersDialog } from "@/components/send-orders-dialog"
 import { SentOrdersDialog } from "@/components/sent-orders-dialog"
 import { createClient } from "@/lib/supabase/client"
+import { RouteGuard } from "@/components/auth/route-guard"
+import { Permission } from "@/lib/db/schema"
 
 export default function TradingPage() {
   const [counts, setCounts] = useState({
@@ -109,79 +111,81 @@ export default function TradingPage() {
   }, [])
 
   return (
-    <DashboardShell>
-      <DashboardHeader heading="Trading" description="Gestiona las órdenes de trading en tiempo real.">
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setSentOrdersDialogOpen(true)} className="flex items-center">
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Órdenes en mercado
-            {counts.sent > 0 && (
+    <RouteGuard requiredPermissions={[Permission.VIEW_TRADING]}>
+      <DashboardShell>
+        <DashboardHeader heading="Trading" description="Gestiona las órdenes de trading en tiempo real.">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setSentOrdersDialogOpen(true)} className="flex items-center">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Órdenes en mercado
+              {counts.sent > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {counts.sent}
+                </Badge>
+              )}
+            </Button>
+            <Button onClick={() => setSendOrdersDialogOpen(true)} className="flex items-center">
+              <Send className="mr-2 h-4 w-4" />
+              Envío de órdenes
+            </Button>
+          </div>
+        </DashboardHeader>
+        <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="pending" className="flex items-center">
+              Pendientes
               <Badge variant="secondary" className="ml-2">
-                {counts.sent}
+                {counts.pending}
               </Badge>
-            )}
-          </Button>
-          <Button onClick={() => setSendOrdersDialogOpen(true)} className="flex items-center">
-            <Send className="mr-2 h-4 w-4" />
-            Envío de órdenes
-          </Button>
-        </div>
-      </DashboardHeader>
-      <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pending" className="flex items-center">
-            Pendientes
-            <Badge variant="secondary" className="ml-2">
-              {counts.pending}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="in-progress" className="flex items-center">
-            En proceso
-            <Badge variant="secondary" className="ml-2">
-              {counts.inProgress}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="under-review" className="flex items-center">
-            En revisión
-            <Badge variant="secondary" className="ml-2">
-              {counts.underReview}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="flex items-center">
-            Completadas
-            <Badge variant="secondary" className="ml-2">
-              {counts.completed}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="canceled" className="flex items-center">
-            Canceladas
-            <Badge variant="secondary" className="ml-2">
-              {counts.canceled}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="pending" className="space-y-4">
-          <TradingOrdersTable availableActions={["tomar", "cancelar"]} />
-        </TabsContent>
-        <TabsContent value="in-progress" className="space-y-4">
-          <TradingOrdersTable availableActions={["ejecutar", "ejecutarParcial", "revisar", "cancelar"]} />
-        </TabsContent>
-        <TabsContent value="under-review" className="space-y-4">
-          <TradingOrdersTable readOnly={true} status="Revisar" />
-        </TabsContent>
-        <TabsContent value="completed" className="space-y-4">
-          <TradingOrdersTable readOnly={true} />
-        </TabsContent>
-        <TabsContent value="canceled" className="space-y-4">
-          <TradingOrdersTable readOnly={true} />
-        </TabsContent>
-      </Tabs>
+            </TabsTrigger>
+            <TabsTrigger value="in-progress" className="flex items-center">
+              En proceso
+              <Badge variant="secondary" className="ml-2">
+                {counts.inProgress}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="under-review" className="flex items-center">
+              En revisión
+              <Badge variant="secondary" className="ml-2">
+                {counts.underReview}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="flex items-center">
+              Completadas
+              <Badge variant="secondary" className="ml-2">
+                {counts.completed}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="canceled" className="flex items-center">
+              Canceladas
+              <Badge variant="secondary" className="ml-2">
+                {counts.canceled}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="pending" className="space-y-4">
+            <TradingOrdersTable availableActions={["tomar", "cancelar"]} />
+          </TabsContent>
+          <TabsContent value="in-progress" className="space-y-4">
+            <TradingOrdersTable availableActions={["ejecutar", "ejecutarParcial", "revisar", "cancelar"]} />
+          </TabsContent>
+          <TabsContent value="under-review" className="space-y-4">
+            <TradingOrdersTable readOnly={true} status="Revisar" />
+          </TabsContent>
+          <TabsContent value="completed" className="space-y-4">
+            <TradingOrdersTable readOnly={true} />
+          </TabsContent>
+          <TabsContent value="canceled" className="space-y-4">
+            <TradingOrdersTable readOnly={true} />
+          </TabsContent>
+        </Tabs>
 
-      {/* Diálogo de envío de órdenes */}
-      <SendOrdersDialog open={sendOrdersDialogOpen} onOpenChange={setSendOrdersDialogOpen} />
+        {/* Diálogo de envío de órdenes */}
+        <SendOrdersDialog open={sendOrdersDialogOpen} onOpenChange={setSendOrdersDialogOpen} />
 
-      {/* Diálogo de órdenes enviadas al mercado */}
-      <SentOrdersDialog open={sentOrdersDialogOpen} onOpenChange={setSentOrdersDialogOpen} />
-    </DashboardShell>
+        {/* Diálogo de órdenes enviadas al mercado */}
+        <SentOrdersDialog open={sentOrdersDialogOpen} onOpenChange={setSentOrdersDialogOpen} />
+      </DashboardShell>
+    </RouteGuard>
   )
 }
