@@ -1,91 +1,69 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
 
 export function DebugUserRole() {
+  const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [userInfo, setUserInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sessionChecked, setSessionChecked] = useState(false)
 
-  const checkUserInfo = async () => {
+  const fetchUserInfo = async () => {
+    setLoading(true)
+    setError(null)
+
     try {
-      setLoading(true)
-      setError(null)
-
       const supabase = createClient()
 
       // Obtener la sesión actual
-      const { data: sessionData } = await supabase.auth.getSession()
-      console.log("Datos de sesión:", sessionData)
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession()
 
-      if (!sessionData.session) {
-        setError("No hay sesión activa")
-        setSessionChecked(true)
+      if (sessionError) {
+        throw new Error(`Error al obtener la sesión: ${sessionError.message}`)
+      }
+
+      setSessionInfo(session)
+
+      if (!session) {
+        setLoading(false)
         return
       }
 
-      // Obtener el usuario de Supabase Auth
-      const { data: authUser } = await supabase.auth.getUser()
-      console.log("Usuario autenticado:", authUser)
-
-      // Obtener el usuario de la tabla usuarios
-      const { data: userData, error } = await supabase
+      // Obtener información del usuario desde la tabla usuarios
+      const { data: userData, error: userError } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("id", sessionData.session.user.id)
+        .eq("email", session.user.email)
         .single()
 
-      console.log("Datos de usuario:", userData, "Error:", error)
-
-      if (error) {
-        // Intentar buscar por email como alternativa
-        const { data: userByEmail, error: emailError } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("email", sessionData.session.user.email)
-          .single()
-
-        if (emailError || !userByEmail) {
-          setError(`Error al obtener datos de usuario: ${error.message}`)
-          setSessionChecked(true)
-          return
-        }
-
-        setUserInfo({
-          auth: authUser.user,
-          userData: userByEmail,
-          note: "Usuario encontrado por email, no por ID",
-        })
-      } else {
-        setUserInfo({
-          auth: authUser.user,
-          userData: userData,
-        })
+      if (userError && userError.code !== "PGRST116") {
+        console.error("Error al obtener información del usuario:", userError)
       }
 
-      setSessionChecked(true)
+      setUserInfo(userData || null)
     } catch (err: any) {
-      console.error("Error en checkUserInfo:", err)
-      setError(`Error: ${err.message}`)
-      setSessionChecked(true)
+      console.error("Error en fetchUserInfo:", err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    checkUserInfo()
+    fetchUserInfo()
   }, [])
 
   return (
-    <Card className="mt-4">
+    <Card>
       <CardHeader>
         <CardTitle>Información de Usuario</CardTitle>
-        <CardDescription>Datos del usuario actual y su rol</CardDescription>
+        <p className="text-sm text-muted-foreground">Datos del usuario actual y su rol</p>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -93,32 +71,40 @@ export function DebugUserRole() {
         ) : error ? (
           <div>
             <p className="text-red-500">{error}</p>
-            <p className="text-sm mt-2">Sesión verificada: {sessionChecked ? "Sí" : "No"}</p>
-            <Button onClick={checkUserInfo} className="mt-2">
+            <Button onClick={fetchUserInfo} className="mt-2">
               Reintentar
             </Button>
           </div>
-        ) : userInfo ? (
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Usuario Auth:</h3>
-              <pre className="bg-muted p-2 rounded text-xs overflow-auto">{JSON.stringify(userInfo.auth, null, 2)}</pre>
-            </div>
-            <div>
-              <h3 className="font-medium">Datos de Usuario:</h3>
-              <pre className="bg-muted p-2 rounded text-xs overflow-auto">
-                {JSON.stringify(userInfo.userData, null, 2)}
-              </pre>
-            </div>
-            {userInfo.note && <p className="text-amber-500 text-sm">{userInfo.note}</p>}
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
-              <p>
-                <strong>Rol:</strong> {userInfo.userData?.rol || "No definido"}
-              </p>
-            </div>
+        ) : !sessionInfo ? (
+          <div>
+            <p className="text-red-500">No hay sesión activa</p>
+            <p>Sesión verificada: {sessionInfo ? "Sí" : "No"}</p>
+            <Button onClick={fetchUserInfo} className="mt-2">
+              Reintentar
+            </Button>
           </div>
         ) : (
-          <p>No se encontró información del usuario</p>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium">Sesión:</h3>
+              <p>ID de Usuario: {sessionInfo.user.id}</p>
+              <p>Email: {sessionInfo.user.email}</p>
+              <p>Autenticado: Sí</p>
+            </div>
+
+            {userInfo ? (
+              <div>
+                <h3 className="font-medium">Datos de Usuario:</h3>
+                <p>Nombre: {userInfo.nombre}</p>
+                <p>Rol: {userInfo.rol}</p>
+                <p>Creado: {new Date(userInfo.created_at).toLocaleString()}</p>
+              </div>
+            ) : (
+              <p>No se encontró información adicional del usuario en la tabla usuarios.</p>
+            )}
+
+            <Button onClick={fetchUserInfo}>Actualizar</Button>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -17,6 +17,7 @@ export function createClient() {
   supabaseClient = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
+      storageKey: "gestor-ordenes-auth",
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
