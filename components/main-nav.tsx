@@ -1,130 +1,108 @@
 "use client"
 
-import type React from "react"
-import { useEffect, useState } from "react"
+import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 
-export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
-  const pathname = usePathname()
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+interface MainNavProps extends React.HTMLAttributes<HTMLElement> {
+  items?: {
+    href: string
+    title: string
+    roles?: string[]
+  }[]
+}
 
-  useEffect(() => {
-    const checkUserRole = async () => {
+export function MainNav({ className, items, ...props }: MainNavProps) {
+  const pathname = usePathname()
+  const [userRole, setUserRole] = React.useState<string | null>(null)
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    async function getUserRole() {
       try {
         const supabase = createClient()
 
         // Obtener la sesión actual
-        const { data: sessionData } = await supabase.auth.getSession()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-        if (!sessionData.session) {
+        if (!session?.user) {
           console.log("No hay sesión activa")
-          setUserRole(null)
           setLoading(false)
           return
         }
 
-        // Obtener el usuario de la tabla usuarios
-        const { data: userData, error } = await supabase
-          .from("usuarios")
-          .select("rol")
-          .eq("id", sessionData.session.user.id)
-          .single()
+        console.log("Obteniendo rol para:", session.user.email)
+
+        // Obtener el rol del usuario
+        const { data, error } = await supabase.from("usuarios").select("rol").eq("id", session.user.id).single()
 
         if (error) {
-          console.error("Error al obtener el rol:", error)
-          // Por defecto, mostrar todo
-          setUserRole("admin")
-        } else if (userData) {
-          console.log("Rol del usuario:", userData.rol)
-          setUserRole(userData.rol)
-        } else {
-          console.log("No se encontró el usuario en la tabla usuarios")
-          // Por defecto, mostrar todo
-          setUserRole("admin")
+          console.error("Error al obtener rol:", error)
+          setLoading(false)
+          return
         }
-      } catch (error) {
-        console.error("Error al verificar el rol:", error)
-        // Por defecto, mostrar todo
-        setUserRole("admin")
+
+        console.log("Rol obtenido:", data?.rol)
+        setUserRole(data?.rol || null)
+      } catch (err) {
+        console.error("Error en getUserRole:", err)
       } finally {
         setLoading(false)
       }
     }
 
-    checkUserRole()
+    getUserRole()
   }, [])
 
-  // Mientras carga, mostrar un esqueleto del menú
+  // Definir los elementos de navegación con sus roles permitidos
+  const navItems = [
+    { href: "/dashboard", title: "Dashboard", roles: ["admin", "comercial", "trader"] },
+    { href: "/orders", title: "Órdenes", roles: ["admin", "comercial"] },
+    { href: "/trading", title: "Mesa de Trading", roles: ["admin", "trader"] },
+    { href: "/config", title: "Configuración", roles: ["admin", "comercial", "trader"] },
+    { href: "/admin", title: "Administración", roles: ["admin"] },
+  ]
+
   if (loading) {
     return (
       <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
-        <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
-        <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
-        <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
+        <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
+        <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
+        <div className="h-4 w-20 bg-gray-200 animate-pulse rounded"></div>
       </nav>
     )
   }
 
-  // Mostrar todas las opciones para admin
-  const isAdmin = userRole === "admin"
+  // Filtrar los elementos según el rol del usuario
+  const filteredItems = navItems.filter((item) => {
+    // Si no se especifican roles, mostrar a todos
+    if (!item.roles) return true
+
+    // Si el usuario es admin, mostrar todo
+    if (userRole === "admin") return true
+
+    // Si el usuario tiene un rol específico, verificar si está permitido
+    return item.roles.includes(userRole || "")
+  })
 
   return (
     <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
-      <Link
-        href="/dashboard"
-        className={cn(
-          "text-sm font-medium transition-colors hover:text-primary",
-          pathname === "/dashboard" ? "text-primary" : "text-muted-foreground",
-        )}
-      >
-        Dashboard
-      </Link>
-
-      <Link
-        href="/ordenes"
-        className={cn(
-          "text-sm font-medium transition-colors hover:text-primary",
-          pathname === "/ordenes" || pathname.startsWith("/ordenes/") ? "text-primary" : "text-muted-foreground",
-        )}
-      >
-        Órdenes
-      </Link>
-
-      <Link
-        href="/trading"
-        className={cn(
-          "text-sm font-medium transition-colors hover:text-primary",
-          pathname === "/trading" ? "text-primary" : "text-muted-foreground",
-        )}
-      >
-        Mesa de Trading
-      </Link>
-
-      <Link
-        href="/config"
-        className={cn(
-          "text-sm font-medium transition-colors hover:text-primary",
-          pathname === "/config" || pathname.startsWith("/config/") ? "text-primary" : "text-muted-foreground",
-        )}
-      >
-        Configuración
-      </Link>
-
-      {isAdmin && (
+      {filteredItems.map((item) => (
         <Link
-          href="/admin"
+          key={item.href}
+          href={item.href}
           className={cn(
             "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/admin" || pathname.startsWith("/admin/") ? "text-primary" : "text-muted-foreground",
+            pathname === item.href ? "text-primary" : "text-muted-foreground",
           )}
         >
-          Administración
+          {item.title}
         </Link>
-      )}
+      ))}
     </nav>
   )
 }

@@ -9,6 +9,7 @@ export function DebugUserRole() {
   const [userInfo, setUserInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sessionChecked, setSessionChecked] = useState(false)
 
   const checkUserInfo = async () => {
     try {
@@ -19,14 +20,17 @@ export function DebugUserRole() {
 
       // Obtener la sesión actual
       const { data: sessionData } = await supabase.auth.getSession()
+      console.log("Datos de sesión:", sessionData)
 
       if (!sessionData.session) {
         setError("No hay sesión activa")
+        setSessionChecked(true)
         return
       }
 
       // Obtener el usuario de Supabase Auth
       const { data: authUser } = await supabase.auth.getUser()
+      console.log("Usuario autenticado:", authUser)
 
       // Obtener el usuario de la tabla usuarios
       const { data: userData, error } = await supabase
@@ -35,17 +39,39 @@ export function DebugUserRole() {
         .eq("id", sessionData.session.user.id)
         .single()
 
+      console.log("Datos de usuario:", userData, "Error:", error)
+
       if (error) {
-        setError(`Error al obtener datos de usuario: ${error.message}`)
-        return
+        // Intentar buscar por email como alternativa
+        const { data: userByEmail, error: emailError } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("email", sessionData.session.user.email)
+          .single()
+
+        if (emailError || !userByEmail) {
+          setError(`Error al obtener datos de usuario: ${error.message}`)
+          setSessionChecked(true)
+          return
+        }
+
+        setUserInfo({
+          auth: authUser.user,
+          userData: userByEmail,
+          note: "Usuario encontrado por email, no por ID",
+        })
+      } else {
+        setUserInfo({
+          auth: authUser.user,
+          userData: userData,
+        })
       }
 
-      setUserInfo({
-        auth: authUser.user,
-        userData: userData,
-      })
+      setSessionChecked(true)
     } catch (err: any) {
+      console.error("Error en checkUserInfo:", err)
       setError(`Error: ${err.message}`)
+      setSessionChecked(true)
     } finally {
       setLoading(false)
     }
@@ -67,6 +93,7 @@ export function DebugUserRole() {
         ) : error ? (
           <div>
             <p className="text-red-500">{error}</p>
+            <p className="text-sm mt-2">Sesión verificada: {sessionChecked ? "Sí" : "No"}</p>
             <Button onClick={checkUserInfo} className="mt-2">
               Reintentar
             </Button>
@@ -83,6 +110,7 @@ export function DebugUserRole() {
                 {JSON.stringify(userInfo.userData, null, 2)}
               </pre>
             </div>
+            {userInfo.note && <p className="text-amber-500 text-sm">{userInfo.note}</p>}
             <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
               <p>
                 <strong>Rol:</strong> {userInfo.userData?.rol || "No definido"}
