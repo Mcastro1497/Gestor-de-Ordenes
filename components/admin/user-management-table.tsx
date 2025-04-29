@@ -23,36 +23,38 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { type User, type Role, UserRole } from "@/lib/db/schema"
+import { UserRole } from "@/lib/db/schema"
 import { Edit, MoreHorizontal, UserPlus, UserX, Trash2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { UserForm } from "./user-form"
-import { getAllUsers, getAllRoles, updateUser, deleteUser } from "@/lib/services/user-service"
+import { getAllSupabaseUsers, toggleUserActive } from "@/lib/services/user-supabase-service"
 
-interface UserManagementTableProps {
-  initialUsers?: User[]
-  initialRoles?: Role[]
+interface SupabaseUser {
+  id: string
+  email: string
+  nombre?: string
+  rol?: UserRole
+  activo?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
-export function UserManagementTable({ initialUsers, initialRoles }: UserManagementTableProps) {
-  // Modificar el estado inicial para evitar valores undefined
-  const [users, setUsers] = useState<User[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
+export function UserManagementTable() {
+  const [users, setUsers] = useState<SupabaseUser[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Cargar usuarios y roles
+  // Cargar usuarios
   useEffect(() => {
-    const loadData = () => {
+    const loadUsers = async () => {
       try {
-        const loadedUsers = getAllUsers()
-        const loadedRoles = getAllRoles()
+        setIsLoading(true)
+        const loadedUsers = await getAllSupabaseUsers()
         setUsers(loadedUsers)
-        setRoles(loadedRoles)
       } catch (error) {
-        console.error("Error al cargar datos:", error)
+        console.error("Error al cargar usuarios:", error)
         toast({
           title: "Error",
           description: "No se pudieron cargar los usuarios.",
@@ -63,11 +65,13 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
       }
     }
 
-    loadData()
+    loadUsers()
   }, [])
 
   // Función para obtener el color de la insignia según el rol
-  const getRoleBadgeVariant = (role: UserRole) => {
+  const getRoleBadgeVariant = (role?: UserRole) => {
+    if (!role) return "secondary"
+
     switch (role) {
       case UserRole.ADMIN:
         return "default"
@@ -83,23 +87,39 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
   }
 
   // Función para obtener la descripción del rol
-  const getRoleDescription = (role: UserRole) => {
-    const foundRole = roles.find((r) => r.name === role)
-    return foundRole?.description || role
+  const getRoleDescription = (role?: UserRole) => {
+    if (!role) return "Sin rol asignado"
+
+    switch (role) {
+      case UserRole.ADMIN:
+        return "Administrador - Acceso completo al sistema"
+      case UserRole.COMERCIAL:
+        return "Comercial/AP - Gestiona clientes y crea órdenes"
+      case UserRole.OPERADOR:
+        return "Operador - Ejecuta órdenes en la mesa de trading"
+      case UserRole.CONTROLADOR:
+        return "Controlador - Supervisa operaciones y verifica cumplimiento"
+      default:
+        return role
+    }
   }
 
   // Función para desactivar un usuario
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
-      await updateUser(userId, { isActive })
+      const result = await toggleUserActive(userId, isActive)
 
-      // Actualizar la lista de usuarios
-      setUsers(users.map((user) => (user.id === userId ? { ...user, isActive } : user)))
+      if (result.success) {
+        // Actualizar la lista de usuarios
+        setUsers(users.map((user) => (user.id === userId ? { ...user, activo: isActive } : user)))
 
-      toast({
-        title: isActive ? "Usuario activado" : "Usuario desactivado",
-        description: `El usuario ha sido ${isActive ? "activado" : "desactivado"} exitosamente.`,
-      })
+        toast({
+          title: isActive ? "Usuario activado" : "Usuario desactivado",
+          description: `El usuario ha sido ${isActive ? "activado" : "desactivado"} exitosamente.`,
+        })
+      } else {
+        throw new Error(result.error)
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -132,23 +152,24 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
     if (!selectedUserId) return
 
     try {
-      const success = await deleteUser(selectedUserId)
+      // En lugar de eliminar, desactivamos el usuario
+      const result = await toggleUserActive(selectedUserId, false)
 
-      if (success) {
+      if (result.success) {
         // Actualizar la lista de usuarios
-        setUsers(users.filter((user) => user.id !== selectedUserId))
+        setUsers(users.map((user) => (user.id === selectedUserId ? { ...user, activo: false } : user)))
 
         toast({
-          title: "Usuario eliminado",
-          description: "El usuario ha sido eliminado exitosamente.",
+          title: "Usuario desactivado",
+          description: "El usuario ha sido desactivado exitosamente.",
         })
       } else {
-        throw new Error("No se pudo eliminar el usuario")
+        throw new Error(result.error)
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo eliminar el usuario.",
+        description: "No se pudo desactivar el usuario.",
         variant: "destructive",
       })
     } finally {
@@ -158,10 +179,15 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
   }
 
   // Función para refrescar la lista de usuarios
-  const refreshUsers = () => {
-    setUsers(getAllUsers())
-    setIsFormOpen(false)
-    setSelectedUserId(null)
+  const refreshUsers = async () => {
+    try {
+      const loadedUsers = await getAllSupabaseUsers()
+      setUsers(loadedUsers)
+      setIsFormOpen(false)
+      setSelectedUserId(null)
+    } catch (error) {
+      console.error("Error al refrescar usuarios:", error)
+    }
   }
 
   // Asegurarnos de que el componente no intente renderizar datos antes de que estén disponibles
@@ -193,18 +219,18 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
               {users.length > 0 ? (
                 users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell className="font-medium">{user.nombre || "Sin nombre"}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
-                      <div className="text-xs text-muted-foreground mt-1">{getRoleDescription(user.role)}</div>
+                      <Badge variant={getRoleBadgeVariant(user.rol)}>{user.rol || "Sin rol"}</Badge>
+                      <div className="text-xs text-muted-foreground mt-1">{getRoleDescription(user.rol)}</div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.isActive ? "default" : "destructive"}>
-                        {user.isActive ? "Activo" : "Inactivo"}
+                      <Badge variant={user.activo ? "default" : "destructive"}>
+                        {user.activo ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{user.created_at ? new Date(user.created_at).toLocaleDateString() : "-"}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -220,7 +246,7 @@ export function UserManagementTable({ initialUsers, initialRoles }: UserManageme
                             Editar usuario
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {user.isActive ? (
+                          {user.activo ? (
                             <DropdownMenuItem onClick={() => handleToggleUserStatus(user.id, false)}>
                               <UserX className="mr-2 h-4 w-4" />
                               Desactivar usuario
