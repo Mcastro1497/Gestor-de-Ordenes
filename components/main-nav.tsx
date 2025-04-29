@@ -13,46 +13,49 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function getUserRole() {
+    const checkUserRole = async () => {
       try {
         const supabase = createClient()
 
         // Obtener la sesión actual
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+        const { data: sessionData } = await supabase.auth.getSession()
 
-        if (!session) {
+        if (!sessionData.session) {
+          console.log("No hay sesión activa")
           setUserRole(null)
           setLoading(false)
           return
         }
 
-        // Obtener el rol del usuario directamente de la tabla usuarios
-        const { data, error } = await supabase.from("usuarios").select("rol").eq("id", session.user.id).single()
+        // Obtener el usuario de la tabla usuarios
+        const { data: userData, error } = await supabase
+          .from("usuarios")
+          .select("rol")
+          .eq("id", sessionData.session.user.id)
+          .single()
 
         if (error) {
           console.error("Error al obtener el rol:", error)
-          // Si hay un error, asumimos que es admin para mostrar todo el menú
+          // Por defecto, mostrar todo
           setUserRole("admin")
-        } else if (data && data.rol) {
-          console.log("Rol obtenido:", data.rol)
-          setUserRole(data.rol)
+        } else if (userData) {
+          console.log("Rol del usuario:", userData.rol)
+          setUserRole(userData.rol)
         } else {
-          // Si no hay datos, asumimos que es admin para mostrar todo el menú
-          console.log("No se encontró rol, asumiendo admin")
+          console.log("No se encontró el usuario en la tabla usuarios")
+          // Por defecto, mostrar todo
           setUserRole("admin")
         }
       } catch (error) {
-        console.error("Error al obtener el rol:", error)
-        // En caso de error, asumimos admin para mostrar todo el menú
+        console.error("Error al verificar el rol:", error)
+        // Por defecto, mostrar todo
         setUserRole("admin")
       } finally {
         setLoading(false)
       }
     }
 
-    getUserRole()
+    checkUserRole()
   }, [])
 
   // Mientras carga, mostrar un esqueleto del menú
@@ -66,14 +69,11 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
     )
   }
 
-  // Por defecto, mostrar todas las opciones si no podemos determinar el rol
+  // Mostrar todas las opciones para admin
   const isAdmin = userRole === "admin"
-  const isComercial = userRole === "comercial" || isAdmin
-  const isTrader = userRole === "trader" || isAdmin
 
   return (
     <nav className={cn("flex items-center space-x-4 lg:space-x-6", className)} {...props}>
-      {/* Dashboard - visible para todos */}
       <Link
         href="/dashboard"
         className={cn(
@@ -84,33 +84,26 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         Dashboard
       </Link>
 
-      {/* Órdenes - visible para comercial y admin */}
-      {isComercial && (
-        <Link
-          href="/ordenes"
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/ordenes" || pathname.startsWith("/ordenes/") ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          Órdenes
-        </Link>
-      )}
+      <Link
+        href="/ordenes"
+        className={cn(
+          "text-sm font-medium transition-colors hover:text-primary",
+          pathname === "/ordenes" || pathname.startsWith("/ordenes/") ? "text-primary" : "text-muted-foreground",
+        )}
+      >
+        Órdenes
+      </Link>
 
-      {/* Trading - visible para trader y admin */}
-      {isTrader && (
-        <Link
-          href="/trading"
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/trading" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          Mesa de Trading
-        </Link>
-      )}
+      <Link
+        href="/trading"
+        className={cn(
+          "text-sm font-medium transition-colors hover:text-primary",
+          pathname === "/trading" ? "text-primary" : "text-muted-foreground",
+        )}
+      >
+        Mesa de Trading
+      </Link>
 
-      {/* Configuración - visible para todos */}
       <Link
         href="/config"
         className={cn(
@@ -121,7 +114,6 @@ export function MainNav({ className, ...props }: React.HTMLAttributes<HTMLElemen
         Configuración
       </Link>
 
-      {/* Administración - solo visible para admin */}
       {isAdmin && (
         <Link
           href="/admin"
