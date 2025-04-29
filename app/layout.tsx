@@ -1,14 +1,18 @@
 import type React from "react"
+import type { Metadata } from "next"
+import { Mona_Sans as FontSans } from "next/font/google"
+import ClientLayout from "./client-layout"
+
 import "@/app/globals.css"
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import { SiteHeader } from "@/components/site-header"
 
-const inter = Inter({ subsets: ["latin"] })
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+})
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Gestor de Órdenes",
-  description: "Sistema de gestión de órdenes y activos",
+  description: "Sistema de gestión de órdenes",
     generator: 'v0.dev'
 }
 
@@ -19,13 +23,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="relative flex min-h-screen flex-col">
-            <SiteHeader />
-            <div className="flex-1">{children}</div>
-          </div>
-        </ThemeProvider>
+      <body className={fontSans.className}>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   )

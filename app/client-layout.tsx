@@ -18,6 +18,7 @@ export default function ClientLayout({
   useEffect(() => {
     setupDebugUtils()
   }, [])
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <AutoAssetsLoader />
