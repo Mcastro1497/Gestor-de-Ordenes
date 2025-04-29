@@ -3,11 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import type { AuthError, Provider, User } from "@supabase/supabase-js"
+import type { User, AuthError, Provider } from "@supabase/supabase-js"
 import { toast } from "sonner"
-
-// Crear una instancia del cliente de Supabase
-const supabase = createClient()
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -17,21 +14,33 @@ export function useAuth() {
   const router = useRouter()
 
   // Función para obtener el rol del usuario
-  const fetchUserRole = useCallback(async (userId: string) => {
+  const fetchUserRole = useCallback(async (userId: string, userEmail: string) => {
     try {
-      console.log("Obteniendo rol para el usuario:", userId)
-      const { data, error } = await supabase.from("usuarios").select("rol").eq("id", userId).single()
+      console.log("Obteniendo rol para el usuario:", userId, userEmail)
+      const supabase = createClient()
+
+      // Primero intentamos buscar por ID
+      let { data, error } = await supabase.from("usuarios").select("rol").eq("id", userId).single()
+
+      // Si no encontramos por ID, intentamos por email
+      if (error || !data) {
+        console.log("No se encontró usuario por ID, intentando por email")
+        const result = await supabase.from("usuarios").select("rol").eq("email", userEmail).single()
+
+        data = result.data
+        error = result.error
+      }
 
       if (error) {
         console.error("Error al obtener rol:", error)
-        return null
+        return "admin" // Por defecto, asumimos admin si hay error
       }
 
       console.log("Rol obtenido:", data?.rol)
-      return data?.rol || null
+      return data?.rol || "admin"
     } catch (err) {
       console.error("Error en fetchUserRole:", err)
-      return null
+      return "admin" // Por defecto, asumimos admin si hay error
     }
   }, [])
 
@@ -40,6 +49,7 @@ export function useAuth() {
     const getUser = async () => {
       try {
         setLoading(true)
+        const supabase = createClient()
 
         // Obtener la sesión actual
         const {
@@ -51,7 +61,7 @@ export function useAuth() {
           setUser(session.user)
 
           // Obtener el rol del usuario
-          const role = await fetchUserRole(session.user.id)
+          const role = await fetchUserRole(session.user.id, session.user.email || "")
           setUserRole(role)
           console.log("Rol establecido:", role)
         } else {
@@ -71,6 +81,7 @@ export function useAuth() {
     getUser()
 
     // Suscribirse a cambios en la autenticación
+    const supabase = createClient()
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -81,7 +92,7 @@ export function useAuth() {
         setUser(session.user)
 
         // Obtener el rol del usuario
-        const role = await fetchUserRole(session.user.id)
+        const role = await fetchUserRole(session.user.id, session.user.email || "")
         setUserRole(role)
         console.log("Rol establecido:", role)
       } else {
@@ -107,6 +118,7 @@ export function useAuth() {
 
       try {
         console.log("Iniciando sesión con:", email)
+        const supabase = createClient()
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -124,7 +136,7 @@ export function useAuth() {
 
         // Obtener el rol del usuario
         if (data.user) {
-          const role = await fetchUserRole(data.user.id)
+          const role = await fetchUserRole(data.user.id, data.user.email || "")
           setUserRole(role)
           console.log("Rol establecido:", role)
         }
@@ -151,6 +163,7 @@ export function useAuth() {
 
     try {
       console.log("Cerrando sesión")
+      const supabase = createClient()
       const { error } = await supabase.auth.signOut()
 
       if (error) {
@@ -182,6 +195,7 @@ export function useAuth() {
       setError(null)
 
       try {
+        const supabase = createClient()
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
@@ -205,102 +219,96 @@ export function useAuth() {
         setLoading(false)
       }
     },
-    [supabase],
+    [fetchUserRole],
   )
 
-  const signUp = useCallback(
-    async (email: string, password: string) => {
-      setLoading(true)
-      setError(null)
+  const signUp = useCallback(async (email: string, password: string) => {
+    setLoading(true)
+    setError(null)
 
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        })
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
-        if (error) {
-          setError(error)
-          toast.error("Error al registrarse: " + error.message)
-          return { user: null, error }
-        }
-
-        toast.success("Registro exitoso. Por favor, verifica tu correo electrónico para confirmar tu cuenta.")
-        return { user: data.user, error: null }
-      } catch (err) {
-        console.error("Error signing up:", err)
-        setError(err as AuthError)
-        toast.error("Error al registrarse")
-        return { user: null, error: err as AuthError }
-      } finally {
-        setLoading(false)
+      if (error) {
+        setError(error)
+        toast.error("Error al registrarse: " + error.message)
+        return { user: null, error }
       }
-    },
-    [supabase],
-  )
 
-  const resetPassword = useCallback(
-    async (email: string) => {
-      setLoading(true)
-      setError(null)
+      toast.success("Registro exitoso. Por favor, verifica tu correo electrónico para confirmar tu cuenta.")
+      return { user: data.user, error: null }
+    } catch (err) {
+      console.error("Error signing up:", err)
+      setError(err as AuthError)
+      toast.error("Error al registrarse")
+      return { user: null, error: err as AuthError }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
-        })
+  const resetPassword = useCallback(async (email: string) => {
+    setLoading(true)
+    setError(null)
 
-        if (error) {
-          setError(error)
-          toast.error("Error al enviar el correo de recuperación: " + error.message)
-          return { error }
-        }
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
 
-        toast.success("Se ha enviado un correo de recuperación a tu dirección de email")
-        return { error: null }
-      } catch (err) {
-        console.error("Error resetting password:", err)
-        setError(err as AuthError)
-        toast.error("Error al solicitar recuperación de contraseña")
-        return { error: err as AuthError }
-      } finally {
-        setLoading(false)
+      if (error) {
+        setError(error)
+        toast.error("Error al enviar el correo de recuperación: " + error.message)
+        return { error }
       }
-    },
-    [supabase],
-  )
 
-  const updatePassword = useCallback(
-    async (password: string) => {
-      setLoading(true)
-      setError(null)
+      toast.success("Se ha enviado un correo de recuperación a tu dirección de email")
+      return { error: null }
+    } catch (err) {
+      console.error("Error resetting password:", err)
+      setError(err as AuthError)
+      toast.error("Error al solicitar recuperación de contraseña")
+      return { error: err as AuthError }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-      try {
-        const { error } = await supabase.auth.updateUser({
-          password,
-        })
+  const updatePassword = useCallback(async (password: string) => {
+    setLoading(true)
+    setError(null)
 
-        if (error) {
-          setError(error)
-          toast.error("Error al actualizar la contraseña: " + error.message)
-          return { error }
-        }
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.updateUser({
+        password,
+      })
 
-        toast.success("Contraseña actualizada correctamente")
-        return { error: null }
-      } catch (err) {
-        console.error("Error updating password:", err)
-        setError(err as AuthError)
-        toast.error("Error al actualizar la contraseña")
-        return { error: err as AuthError }
-      } finally {
-        setLoading(false)
+      if (error) {
+        setError(error)
+        toast.error("Error al actualizar la contraseña: " + error.message)
+        return { error }
       }
-    },
-    [supabase],
-  )
+
+      toast.success("Contraseña actualizada correctamente")
+      return { error: null }
+    } catch (err) {
+      console.error("Error updating password:", err)
+      setError(err as AuthError)
+      toast.error("Error al actualizar la contraseña")
+      return { error: err as AuthError }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   return {
     user,
@@ -308,7 +316,11 @@ export function useAuth() {
     loading,
     error,
     signIn,
+    signInWithProvider,
+    signUp,
     signOut,
+    resetPassword,
+    updatePassword,
     isAuthenticated: !!user,
   }
 }

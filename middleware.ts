@@ -29,9 +29,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  // La verificación de permisos específicos por ruta se hará en el cliente
-  // con el componente RouteGuard para evitar múltiples llamadas a la base de datos
-
   return res
 }
 

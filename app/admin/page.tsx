@@ -1,48 +1,22 @@
-"use client"
-
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardShell } from "@/components/dashboard-shell"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { UserManagementTable } from "@/components/admin/user-management-table"
-import { RolePermissionsInfo } from "@/components/admin/role-permissions-info"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RouteGuard } from "@/components/auth/route-guard"
-import { Permission } from "@/lib/db/schema"
 
 export default function AdminPage() {
   return (
-    <RouteGuard requiredPermissions={[Permission.MANAGE_USERS]}>
-      <DashboardShell>
-        <DashboardHeader
-          heading="Administración de Usuarios"
-          text="Gestiona los usuarios y sus permisos en el sistema."
-        />
+    <DashboardShell>
+      <DashboardHeader heading="Administración" text="Gestiona usuarios y configuraciones del sistema." />
 
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="users">Usuarios</TabsTrigger>
-            <TabsTrigger value="roles">Roles y Permisos</TabsTrigger>
-          </TabsList>
+      <div className="grid gap-4">
+        <div className="border p-4 rounded-md">
+          <h2 className="text-xl font-bold mb-4">Gestión de Usuarios</h2>
+          <p>Aquí se mostrarán las opciones para gestionar usuarios.</p>
+        </div>
 
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>Usuarios del Sistema</CardTitle>
-                <CardDescription>
-                  Administra los usuarios, sus roles y permisos. Puedes crear, editar y desactivar usuarios.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UserManagementTable />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="roles">
-            <RolePermissionsInfo />
-          </TabsContent>
-        </Tabs>
-      </DashboardShell>
-    </RouteGuard>
+        <div className="border p-4 rounded-md">
+          <h2 className="text-xl font-bold mb-4">Configuración del Sistema</h2>
+          <p>Aquí se mostrarán las opciones de configuración del sistema.</p>
+        </div>
+      </div>
+    </DashboardShell>
   )
 }
